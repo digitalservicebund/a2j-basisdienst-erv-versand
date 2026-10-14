@@ -1,0 +1,25 @@
+# $schema: https://www.schemastore.org/contextive-glossary.json
+contexts:
+  - name: "Basisdienst: ERV Versand"
+    terms:
+      - name: Message
+        definition: TBD
+        aliases:
+          - Nachricht
+      - name: Attachment
+        definition: TBD
+
+  - name: ERV
+    terms:
+      - name: EGVP
+        definition: TBD
+
+  - name: OSCI
+    terms:
+      - name: OSCIMessage
+        definition: TBD
+
+  - name: SAFE
+    terms:
+      - name: SAFE-ID
+        definition: TBD
