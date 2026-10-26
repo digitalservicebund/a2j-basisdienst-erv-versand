@@ -1,0 +1,7 @@
+# $schema: https://www.schemastore.org/pnpm-workspace.json
+preferFrozenLockfile: true
+trustPolicy: no-downgrade
+allowBuilds:
+  protobufjs: true # Required by dockerode, which is used by testcontainers.
+  ssh2: true # Required by docker-modem, which is used by testcontainers.
+  cpu-features: true # it's testcontainers dependency

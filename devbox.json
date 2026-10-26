@@ -17,6 +17,11 @@
     "zizmor@1.29.0",
     "jq@1.8.2",
     "yq-go@4.53.3",
-    "ls-lint@2.3.1"
-  ]
+    "ls-lint@2.3.1",
+    "nodejs@26.5.0",
+    "pnpm@12.9.0"
+  ],
+  "env": {
+    "DEVBOX_COREPACK_ENABLED": "true"
+  }
 }

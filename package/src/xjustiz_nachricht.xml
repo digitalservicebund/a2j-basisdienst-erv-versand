@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tns:nachricht.gds.uebermittlungSchriftgutobjekte.0005005
+	xmlns:tns="http://www.xjustiz.de"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:din91379="urn:xoevde:kosit:xoev:datentyp:din-91379_2022-08"
+	xsi:schemaLocation="http://www.xjustiz.de xjustiz_0005_nachrichten_3_1.xsd">
+	<tns:nachrichtenkopf xjustizVersion="3.5.1">
+		<tns:aktenzeichen.empfaenger>unbekannt</tns:aktenzeichen.empfaenger>
+		<tns:erstellungszeitpunkt>2025-09-01T12:03:42Z</tns:erstellungszeitpunkt>
+		<tns:auswahl_absender>
+			<tns:absender.sonstige>DE.Justiztest.671e6254-ca31-43c3-b6bc-a43d2c02d737.0112</tns:absender.sonstige>
+		</tns:auswahl_absender>
+		<tns:auswahl_empfaenger>
+			<tns:empfaenger.sonstige>DE.Justiztest.95051096-c472-47c3-9760-56d2229c3bb2.e547</tns:empfaenger.sonstige>
+		</tns:auswahl_empfaenger>
+		<tns:eigeneNachrichtenID>69965e71-73de-4ff3-890a-11ef47a54375</tns:eigeneNachrichtenID>
+		<tns:herstellerinformation>
+			<tns:nameDesProdukts>&lt;Software-Name&gt;</tns:nameDesProdukts>
+			<tns:herstellerDesProdukts>&lt;Herstellername&gt;</tns:herstellerDesProdukts>
+			<tns:version>&lt;Software-Version&gt;</tns:version>
+		</tns:herstellerinformation>
+	</tns:nachrichtenkopf>
+	<tns:grunddaten>
+		<tns:verfahrensdaten>
+			<tns:instanzdaten>
+				<tns:sachgebiet listVersionID="2.3">
+					<code xmlns="">Sonstige Sachen</code>
+				</tns:sachgebiet>
+				<tns:auswahl_instanzbehoerde>
+					<tns:sonstige>DE.Justiztest.95051096-c472-47c3-9760-56d2229c3bb2.e547</tns:sonstige>
+				</tns:auswahl_instanzbehoerde>
+				<tns:aktenzeichen>
+					<tns:auswahl_aktenzeichen>
+						<tns:aktenzeichen.freitext>unbekannt</tns:aktenzeichen.freitext>
+					</tns:auswahl_aktenzeichen>
+				</tns:aktenzeichen>
+			</tns:instanzdaten>
+			</tns:verfahrensdaten>
+	</tns:grunddaten>
+</tns:nachricht.gds.uebermittlungSchriftgutobjekte.0005005>

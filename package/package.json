@@ -1,0 +1,24 @@
+{
+  "$schema": "https://www.schemastore.org/package.json",
+  "name": "a2j-basisdienst-erv-versand",
+  "version": "0.0.1",
+  "description": "The Basisdienst: ERV Versand is an integration service that provides basic capabilities for sending messages to courts, lawyers, and other participants of the ERV (Elektronischer Rechtsverkehr)",
+  "main": "index.js",
+  "author": "Team Court Communication (Access to Justice) - DigitalService GmbH des Bundes",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/digitalservicebund/a2j-basisdienst-erv-versand.git"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@testcontainers/rabbitmq": "^12.2.1",
+    "testcontainers": "^12.2.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "amqplib": "^2.2.0",
+    "ky": "^2.2.0"
+  }
+}
