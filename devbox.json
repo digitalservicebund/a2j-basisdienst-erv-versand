@@ -20,8 +20,5 @@
     "ls-lint@2.3.1",
     "nodejs@26.5.0",
     "pnpm@12.9.0"
-  ],
-  "env": {
-    "DEVBOX_COREPACK_ENABLED": "true"
-  }
+  ]
 }

@@ -1,9 +1,9 @@
 name: Build
 on:
   push:
-    branches: [main]
+    branches: [prototyping]
   pull_request:
-    branches: [main]
+    branches: [prototyping]
   workflow_dispatch:
 
 env:
@@ -13,7 +13,7 @@ env:
 #   INFRA_REPO: a2j-court-communication-infra
 jobs:
   build:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/prototyping'
     runs-on: ubuntu-latest
     permissions:
       actions: read
