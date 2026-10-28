@@ -1,12 +1,38 @@
-import { type Message, type Channel } from "amqplib";
+import amqp, { type Message, type Channel } from "amqplib";
 import {
   sendExampleMessage,
+  vibiliaAdapter,
   type MessageID,
   type SafeID,
   type VibiliaAdapter,
-} from "~/send-example-message";
+} from "./send-example-message.ts";
 
-function index() {}
+async function main() {
+    const connection = await amqp.connect(process.env["AMQP_URL"] ?? "amqp://localhost:5671");
+    const channel = await connection.createChannel();
+    const requestsQueueName = "requests";
+    const responsesQueueName = "responses";
+    channel.assertQueue(requestsQueueName);
+    channel.assertQueue(responsesQueueName);
+
+    const vibilia = vibiliaAdapter(
+      new URL(process.env["VIBILIA_BASE_URL"]!),
+      process.env["SENDER_SAFE_ID"]!,
+      process.env["SENDER_MESSAGE_BOX_PASSWORD"]!,
+    );
+
+    consumeMessages(
+      vibilia,
+      channel,
+      {
+        requests: requestsQueueName,
+        responses: responsesQueueName,
+      },
+    );
+}
+
+main();
+
 export async function consumeMessages(
   vibilia: VibiliaAdapter,
   messageBroker: Channel,
