@@ -1,5 +1,11 @@
-import xjustizNachricht from "./xjustiz_nachricht.xml?raw";
+import { readFileSync } from 'node:fs'
 import ky, { type KyInstance } from "ky";
+
+const xjustizNachricht = readFileSync(
+  new URL('./xjustiz_nachricht.xml', import.meta.url),
+  'utf-8'
+)
+
 export async function sendExampleMessage(
   receiver: SafeID,
   vibilia: VibiliaAdapter,
