@@ -1,4 +1,6 @@
 import amqp, { type Message, type Channel } from "amqplib";
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 import {
   sendExampleMessage,
   vibiliaAdapter,
@@ -8,6 +10,8 @@ import {
 } from "./send-example-message.ts";
 
 async function main() {
+    await loadMountedSecrets();
+
     const connection = await amqp.connect(process.env["AMQP_URL"] ?? "amqp://localhost:5671");
     const channel = await connection.createChannel();
     const requestsQueueName = "requests";
@@ -32,6 +36,14 @@ async function main() {
 }
 
 main();
+
+export async function loadMountedSecrets(secretsDir = "/etc/secrets") {
+  for (const name of await readdir(secretsDir).catch(() => [])) {
+    if (!name.startsWith(".")) {
+      process.env[name] ??= (await readFile(join(secretsDir, name), "utf8")).trim();
+    }
+  }
+}
 
 export async function consumeMessages(
   vibilia: VibiliaAdapter,
