@@ -1,0 +1,20 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://schemas.service.justiz.de/basisdienst/erv/send-egvp-message/v1
+title: Send EGVP Message
+type: object
+required:
+  - receiver
+  - xjustizNachricht
+properties:
+  receiver:
+    description: target identity where to send the message to
+    $ref: ./shared/safe-id.v1.yaml
+  xjustizMessage:
+    $ref: ./shared/data-artifact.v1.yaml
+  attachments:
+    description: >
+      Optional list of attachments to send with the message. Attachments should
+      be referenced in the XJustiz message.
+    type: array
+    items:
+      $ref: ./shared/attachment.v1.yaml

@@ -1,0 +1,18 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://schemas.service.justiz.de/basisdienst/erv/problems/receiver-unknown/v1
+title: Receiver Unknown
+description: >
+  The target receiver referenced in the request does not exist.
+  Not retryable: Change receiver.
+allOf: [{ $ref: problem-details.v1.yaml }]
+required:
+  - pointer
+properties:
+  type:
+    const: https://schemas.service.justiz.de/basisdienst/erv/problems/receiver-unknown
+  title:
+    const: Receiver Unknown
+examples:
+  - type: https://schemas.service.justiz.de/basisdienst/erv/problems/receiver-unknown
+    title: Receiver Unknown
+    detail: The receiver referenced in the request does not exist.

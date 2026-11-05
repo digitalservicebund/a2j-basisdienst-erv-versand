@@ -1,0 +1,161 @@
+# $schema: www.asyncapi.com/schema-store/all.schema-store.json
+asyncapi: 3.1.0
+defaultContentType: application/json
+
+info:
+  title: "Basisdienst: ERV Versand - Shared Components"
+  version: 0.0.1
+  description: >
+    Component-only document shared by specifications for all applications It is
+    not meant to be used on its own, it only exists to keep message, trait and
+    schema definitions in a single place.
+
+components:
+  servers:
+    production:
+      host: <redacted>
+      protocol: amqps
+
+    staging:
+      host: <redacted>
+      protocol: amqps
+
+    development:
+      host: <redacted>
+      protocol: amqps
+
+  messages:
+    SendEgvpMessageV1:
+      title: Send EGVP Message - Version 1
+      summary: Request message to initiate the transfer of an EGVP message to a direct receiver
+      bindings:
+        amqp:
+          messageType: de.justiz.service.basisdienst.erv.send-egvp-message.v1
+      payload:
+        $ref: "./schemas/send-egvp-message.v1.yaml"
+      traits:
+        - $ref: "#/components/messageTraits/RequestMessageV1"
+
+    EgvpMessageSentV1:
+      summary: Reply message indicating an EGVP message has been sent successfully
+      bindings:
+        amqp:
+          messageType: de.justiz.basisdienst.erv.egvp-message-sent.v1
+      payload:
+        $ref: "./schemas/egvp-message-sent.v1.yaml"
+      traits:
+        - $ref: "#/components/messageTraits/ReplyMessageV1"
+
+    SendEgvpMessageFailedV1:
+      summary: Reply message indicating an EGVP message could not be send successfully.
+      bindings:
+        amqp:
+          messageType: de.justiz.basisdienst.erv.send-egvp-message-failed.v1
+      contentType: application/problem+json
+      payload:
+        $ref: "./schemas/send-egvp-message-failed.v1.yaml"
+      traits:
+        - $ref: "#/components/messageTraits/ReplyMessageV1"
+
+    SendEgvpExampleMessageV1:
+      title: Send EGVP Example Message - Version 1
+      summary: Request message to initiate the transfer of an EGVP message to a direct receiver
+      bindings:
+        amqp:
+          messageType: de.justiz.basisdienst.erv.send-egvp-example-message.v1
+      payload:
+        $ref: "./schemas/send-egvp-example-message.v1.yaml"
+      traits:
+        - $ref: "#/components/messageTraits/RequestMessageV1"
+
+    SendEgvpExampleMessageFailedV1:
+      summary: Reply message indicating an EGVP example message could not be send successfully.
+      bindings:
+        amqp:
+          messageType: de.justiz.basisdienst.erv.send-egvp-example-message-failed.v1
+      contentType: application/problem+json
+      payload:
+        $ref: "./schemas/send-egvp-message-failed.v1.yaml"
+      traits:
+        - $ref: "#/components/messageTraits/ReplyMessageV1"
+
+  replyAddresses:
+    UserIdV1:
+      description: >
+        Replies are routed into dedicated queues per client. Only the respective
+        client has the permissions to access its own queue. Thereby, no other
+        client can read replies of another client.
+
+        Routing of reply messages is based on the user identifier property of
+        the related request message. This property is trustfully verified by the
+        message broker against the authenticated user publishing a request
+        message. Request messages should extend the `RequestMessage` trait.
+
+
+        **IMPORTANT**:
+        Due to limitations of the AsyncAPI standard it is documented as
+        a header. In practice it MUST be the native property.
+      location: "$message.header#/userId"
+
+  messageTraits:
+    RequestMessageV1:
+      description: >
+        Shared foundation for all request messages.
+
+        **IMPORTANT:**
+        A request message without a user identifier can not be replied to and
+        gets dropped silently.
+      correlationId:
+        $ref: "#/components/correlationIds/AmqpCorrelationIdV1"
+      headers:
+        allOf:
+          - $ref: "#/components/schemas/AmqpCorrelationIdV1"
+          - $ref: "#/components/schemas/UserIdV1"
+
+    ReplyMessageV1:
+      description: Shared foundation for all reply messages.
+      correlationId:
+        $ref: "#/components/correlationIds/AmqpCorrelationIdV1"
+      headers:
+        allOf:
+          - $ref: "#/components/schemas/AmqpCorrelationIdV1"
+
+  correlationIds:
+    AmqpCorrelationIdV1:
+      description: >
+        AMQP native `correlation-id` property of a message.
+
+        **IMPORTANT**:
+        Due to limitations of the AsyncAPI standard it points to a header here.
+        In practice it MUST be the native property.
+      location: "$message.header#/correlationId"
+
+  schemas:
+    AmqpCorrelationIdV1:
+      type: object
+      required: [correlationId]
+      properties:
+        correlationId:
+          type: string
+          format: uuid
+          description: >
+            AMQP native `correlation-id` property of a message.
+
+            **IMPORTANT**:
+            Due to limitations of the AsyncAPI standard it is documented as
+            a header. In practice it MUST be the native property.
+
+    UserIdV1:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: string
+          description: >
+            AMQP native `user-id` property of a message. Values are trustfully
+            verified by the message broker against the authenticated user
+            publishing the message.
+
+            **IMPORTANT**:
+            Due to limitations of the AsyncAPI standard it is documented as
+            a header. In practice it MUST be the native property.

@@ -106,6 +106,7 @@ tasks:
       - check:lint:markdown
       - check:lint:continuous-integration-workflows
       - check:lint:continuous-integration-workflows:security
+      - check:lint:asyncapi
 
   fix:lint:
     desc: apply automated fixes for linting issues where possible (supports list of files as argument)
@@ -169,6 +170,26 @@ tasks:
       FILTERED_FILES: '{{ regexFindAll "(?m)^\\.github/.*$" .FILES -1 | join " " }}'
     if: "{{ empty .FILES | or (not (empty .FILTERED_FILES)) }}"
     cmd: zizmor --persona=pedantic --quiet --fix --cache-dir ./.task/zizmor {{ .FILTERED_FILES | default "./" }}
+
+  check:lint:asyncapi:
+    desc: validate AsyncAPI specifications (supports list of files as argument)
+    internal: true
+    deps: [setup:development-environment]
+    vars:
+      FILES: '{{ .CLI_ARGS_LIST | join "\n" }}'
+      FILTERED_FILES: '{{ regexFindAll "(?m)^.*\\.asyncapi\\.yaml$" .FILES -1 | join " " }}'
+    if: "{{ empty .FILES | or (not (empty .FILTERED_FILES)) }}"
+    cmd: |
+      status=0
+
+      for file in {{ .FILTERED_FILES | default "./api/*.asyncapi.yaml" }}; do
+        output="$(asyncapi validate --fail-severity=warn "$file" 2>&1)" || { 
+          echo "$output"
+          status=1
+        }
+      done
+
+      exit $status
 
   check:spell-and-style:
     desc: check spelling and technical writing style in prose (supports list of files as argument)

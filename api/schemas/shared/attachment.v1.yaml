@@ -1,0 +1,20 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://schemas.service.justiz.de/basisdienst/erv/shared/attachment/v1
+title: Attachment
+description: >
+  A file attached to an EGVP message. Attachments should be referenced within
+  the XJustiz message of the EGVP message.
+type: object
+allOf: [{ $ref: ./data-artifact.v1.yaml }]
+required:
+  - name
+properties:
+  name:
+    description: >
+      Name of the file as referenced in the XJustiz message. The full name
+      SHOULD follow the pattern of "<descriptive-name>_<UUID>.<file-extension>".
+      The UUID is optional, but recommended per default. The total length MUST
+      not be longer than 90 characters. The display name and other metadata can
+      be provided in the XJustiz message.
+    type: string
+    maxLength: 90

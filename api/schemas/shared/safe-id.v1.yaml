@@ -1,0 +1,12 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://schemas.service.justiz.de/basisdienst/erv/shared/safe-id/v1
+title: SAFE-ID
+description: >-
+  Identifier for an EGVP participant from the SAFE identity management system
+type: string
+pattern: "^DE\\.[a-zA-Z0-9_-]+\\.[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}\\.[a-fA-F0-9]{4}$"
+# Pattern explained: "<country-code>.<domain>.<UUID>.<check-digits>"
+# Source: https://egvp.justiz.de/Drittprodukte/SAFE_Abbildungsvorschrift_SAFE_ID_V2.pdf#:~:text=Diese%20ID%20ist%20unver%C3%A4nderbar%20und%20darf%20nur,Grunds%C3%A4tzen%20des%20SAFE%2DKonzeptes%20im%20f%C3%B6deralen%20Kontext%20betrieben.
+examples:
+  - DE.Justiz.71051095-c471-46e3-1760-56d2229c3bb2.a740
+  - DE.BRAK_SPT.a190d57e-63b6-4b1a-895a-f9ed715e8fa4.bd1e

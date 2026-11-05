@@ -1,0 +1,7 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://schemas.service.justiz.de/basisdienst/erv/send-egvp-example-message-failed/v1
+title: Send EGVP Example Message Failed
+oneOf:
+  - $ref: ./problems/payload-invalid.v1.yaml
+  - $ref: ./problems/receiver-unknown.v1.yaml
+  - $ref: ./problems/unknown-problem.v1.yaml

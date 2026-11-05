@@ -1,0 +1,97 @@
+# $schema: www.asyncapi.com/schema-store/all.schema-store.json
+asyncapi: 3.1.0
+defaultContentType: application/json
+
+info:
+  title: "Basisdienst: ERV Versand"
+  version: 0.0.1
+  description: >
+    The Basisdienst: ERV Versand is an integration service that provides basic
+    capabilities for sending messages to courts, lawyers, and other participants
+    of the ERV (Elekronischer Rechtsverkehr). Clients integrate with the
+    Basisdienst using an request-reply communication pattern.
+
+servers:
+  production:
+    $ref: "./components.asyncapi.yaml#/components/servers/production"
+  staging:
+    $ref: "./components.asyncapi.yaml#/components/servers/staging"
+  development:
+    $ref: "./components.asyncapi.yaml#/components/servers/development"
+
+channels:
+  requests:
+    summary: Queue where request message from all clients are consumed from
+    description: >
+      Reply messages will be routed back to clients via the "replies" channel.
+    address: requests
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: requests
+    messages:
+      SendEgvpMessageV1:
+        $ref: "./components.asyncapi.yaml#/components/messages/SendEgvpMessageV1"
+      SendEgvpExampleMessageV1:
+        $ref: "./components.asyncapi.yaml#/components/messages/SendEgvpExampleMessageV1"
+
+  replies:
+    summary: Exchange where reply messages are published
+    description: >
+      Every client has its own reply queue. Reply messages are routed based on
+      the user identifier property of the related request message. This property
+      is trustfully verified by the message broker when publishing messages,
+      based on the connected user.
+    address: "replies.{UserId}"
+    parameters:
+      UserId:
+        description: Verified user identifier of the AMPQ connection.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: replies
+          type: direct
+    messages:
+      EgvpMessageSentV1:
+        $ref: "./components.asyncapi.yaml#/components/messages/EgvpMessageSentV1"
+      SendEgvpMessageFailedV1:
+        $ref: "./components.asyncapi.yaml#/components/messages/SendEgvpMessageFailedV1"
+      SendEgvpExampleMessageFailedV1:
+        $ref: "./components.asyncapi.yaml#/components/messages/SendEgvpExampleMessageFailedV1"
+
+operations:
+  SendEgvpMessageV1:
+    summary: Request to send a message directly to a receiver via the EGVP network.
+    action: receive
+    channel:
+      $ref: "#/channels/requests"
+    messages:
+      - $ref: "#/channels/requests/messages/SendEgvpMessageV1"
+    reply:
+      address:
+        $ref: "./components.asyncapi.yaml#/components/replyAddresses/UserIdV1"
+      channel:
+        $ref: "#/channels/replies"
+      messages:
+        - $ref: "#/channels/replies/messages/EgvpMessageSentV1"
+        - $ref: "#/channels/replies/messages/SendEgvpMessageFailedV1"
+
+  SendEgvpExampleMessageV1:
+    summary: >
+      Request to send a static example message without attachments, just by defining a receiver.
+      Intended to be used for first client integration tests.
+    action: receive
+    channel:
+      $ref: "#/channels/requests"
+    messages:
+      - $ref: "#/channels/requests/messages/SendEgvpExampleMessageV1"
+    reply:
+      address:
+        $ref: "./components.asyncapi.yaml#/components/replyAddresses/UserIdV1"
+      channel:
+        $ref: "#/channels/replies"
+      messages:
+        - $ref: "#/channels/replies/messages/EgvpMessageSentV1"
+        - $ref: "#/channels/replies/messages/SendEgvpExampleMessageFailedV1"

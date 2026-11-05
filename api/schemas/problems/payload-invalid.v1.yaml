@@ -1,0 +1,52 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://schemas.service.justiz.de/basisdienst/erv/problems/payload-invalid/v1
+title: Payload Invalid
+description: >
+  The payload of the request message does not conform to the payload schema
+  of its message type.
+  Not retryable: the requester must fix the payload before sending the message
+  again.
+allOf: [{ $ref: problem-details.v1.yaml }]
+required:
+  - errors
+properties:
+  type:
+    const: https://schemas.service.justiz.de/basisdienst/erv/problems/payload-invalid
+  title:
+    const: Payload Invalid
+  errors:
+    type: array
+    description: All schema violations found in the payload
+    $comment: Follows the validation error example in RFC 9457.
+    minItems: 1
+    items:
+      type: object
+      required:
+        - pointer
+        - detail
+      properties:
+        pointer:
+          type: string
+          description: >
+            JSON Pointer (RFC 6901) to the affected value in the payload, in URI
+            fragment form. For a missing required field, it points to the
+            missing field itself.
+          examples:
+            - "#/attachments/2/name"
+        detail:
+          type: string
+          description: >
+            Human-readable explanation of this violation. Intended for logs and
+            debugging. Do **NOT** include sensitive data! Consumer must not
+            attempt to parse the details.
+          examples:
+            - Required property is missing.
+examples:
+  - type: https://schemas.service.justiz.de/basisdienst/erv/problems/payload-invalid
+    title: Payload Invalid
+    detail: The payload contains 2 schema violations.
+    errors:
+      - pointer: "#/attachments/2/name"
+        detail: Required property is missing.
+      - pointer: "#/xjustizNachricht/dataReference"
+        detail: Value is not a valid HTTPS URI.

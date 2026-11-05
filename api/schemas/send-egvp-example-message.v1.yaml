@@ -1,0 +1,10 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://schemas.service.justiz.de/basisdienst/erv/send-egvp-example-message/v1
+title: Send EGVP Message
+type: object
+required:
+  - receiver
+properties:
+  receiver:
+    allOf: [{ $ref: ./shared/safe-id.v1.yaml }]
+    description: target identity where to send the message to

@@ -1,0 +1,5 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://schemas.service.justiz.de/basisdienst/erv/egvp-message-sent/v1
+title: EGVP Message Sent
+type: object
+properties: {}

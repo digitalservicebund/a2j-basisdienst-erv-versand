@@ -1,0 +1,19 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://schemas.service.justiz.de/basisdienst/erv/problems/unknown-problem/v1
+title: Unknown Problem
+description: >
+  Any problem whose type is not part of the problem type catalog. This can be
+  unexpected problem, but also problem types new and unknown to old consumers.
+  This problem type represents the "catch anything else" branch for consumers
+  error handling. It technically enforces backwards compatible extensibility of
+  failure messages.
+$comment: >
+  This type must list all other problem types of the catalog. Every time a new
+  problem type is added, it must be appended to the list here.
+allOf: [{ $ref: problem-details.v1.yaml }]
+properties:
+  type:
+    not:
+      enum:
+        - https://schemas.service.justiz.de/basisdienst/erv/problems/payload-invalid
+        - https://schemas.service.justiz.de/basisdienst/erv/problems/receiver-unknown

@@ -49,6 +49,44 @@
         }
       }
     },
+    "asyncapi@6.0.2": {
+      "last_modified": "2026-10-02T22:55:44Z",
+      "resolved": "github:NixOS/nixpkgs/55ba7f49ef2962b42cbd126522b7df5f95037679#asyncapi",
+      "source": "devbox-search",
+      "version": "6.0.2",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/ms6szzvaws14m82y9qjc6wzanph8l70r-asyncapi-6.0.2",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/ms6szzvaws14m82y9qjc6wzanph8l70r-asyncapi-6.0.2"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/r6n8si46g27hgkrf8zszxl8c10204plh-asyncapi-6.0.2",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/r6n8si46g27hgkrf8zszxl8c10204plh-asyncapi-6.0.2"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/95fq9ix73j73yfl65d1z5mg8fd9smcsb-asyncapi-6.0.2",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/95fq9ix73j73yfl65d1z5mg8fd9smcsb-asyncapi-6.0.2"
+        }
+      }
+    },
     "coreutils@9.10": {
       "last_modified": "2026-05-20T06:38:13Z",
       "resolved": "github:NixOS/nixpkgs/d99b013d5d1931ad77fe3912ed218170dec5d9a4#coreutils",

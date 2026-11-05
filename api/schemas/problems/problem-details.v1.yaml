@@ -1,0 +1,47 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://schemas.service.justiz.de/basisdienst/erv/problems/problem-details/v1
+title: Problem Details
+description: >
+  Base schema for all failure messages, following RFC 9457 "Problem Details".
+  Following the concept of registered problem types, concrete problems extend
+  this schema.
+$comment: >
+  Extending problem schemas must do so via allOf and fix "type" and "title"
+  properties with const values. Every new error type must listed in the fallback
+  "unknown-problem".
+
+  The original "status" property is omitted, because it has no application in
+  the context of asynchronous messaging. Also the "instance" property is dropped
+  in favor of correlation identifiers and correlation by telemetry data.
+type: object
+required:
+  - type
+  - title
+properties:
+  type:
+    type: string
+    format: uri
+    description: >
+      Absolute URI identifying the problem type. It is a stable identifier and
+      consumers can branch on this value.
+    examples:
+      - https://schemas.service.justiz.de/basisdienst/erv/problems/incorrect-message-payload
+  title:
+    type: string
+    description: >-
+      Short, human-readable summary of the problem. It is fixed per problem type
+      and does not change between occurrences.
+    examples:
+      - Incorrect Message Payload
+  detail:
+    type: string
+    description: >
+      Human-readable explanation specific to this problems occurrence. Intended
+      for logs and debugging. Do **NOT** include sensitive data. Consumer must
+      not attempt to parse the details.
+    examples:
+      - Missing "name" for item of "attachments[1]".
+examples:
+  - type: https://schemas.service.justiz.de/basisdienst/erv/problems/recipient-unknown
+    title: Incorrect Message Payload
+    detail: Missing "name" for item of "attachments[1]".

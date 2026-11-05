@@ -1,0 +1,44 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://schemas.service.justiz.de/basisdienst/erv/shared/data-artifact/v1
+title: Data Artifact
+description: >
+  Some data that can be either embedded as Base64 encoded blob or by an URI
+  reference to download the data from. Also commonly known as the Claim Check
+  Pattern.
+oneOf:
+  - title: Embedded Data
+    type: object
+    required: [content]
+    properties:
+      content:
+        type: string
+        contentEncoding: base64
+
+    examples:
+      - content: IyAkc2NoZW1hOiB3d3cuYXN5bmNhcGkuY29tL3NjaGVtYS1zdG9yZS9hbGwuc2
+
+  - title: Referenced Data
+    type: object
+    required: [uri, size, digest]
+    properties:
+      uri:
+        description: Only HTTPS references are supported.
+        type: string
+        format: uri
+        pattern: "^https://"
+      size:
+        description: size of the artifact in bytes
+        type: integer
+        minimum: 1
+      digest:
+        description: >
+          Cryptographic hash of the artifacts raw bytes to verify data
+          integrity, prefixed with the algorithm name. Only SHA256 hashes are
+          supported for now.
+        type: string
+        pattern: "^sha256:[a-f0-9]{64}$"
+
+    examples:
+      - uri: https://some.upstream.context/some/resource?maybe=parameter
+        size: 1096
+        digest: "sha256:cd42c22de35760ebeec2757f4a2909203d90f5c6ebb398c7491698ecc7a65d92"
