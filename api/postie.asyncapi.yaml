@@ -1,0 +1,63 @@
+# $schema: www.asyncapi.com/schema-store/all.schema-store.json
+asyncapi: 3.1.0
+defaultContentType: application/json
+
+info:
+  title: "Basisdienst: ERV Versand - Postie Application"
+  version: 0.0.1
+
+servers:
+  production:
+    $ref: './components.asyncapi.yaml#/components/servers/production'
+  staging:
+    $ref: './components.asyncapi.yaml#/components/servers/staging'
+
+channels:
+  requests:
+    summary: Queue to consume request message from all clients
+    description: Response messages will be routed back to clients via the reply exchange.
+    address: requests
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: requests
+    messages:
+      SendEgvpMessage:
+        $ref: './components.asyncapi.yaml#/components/messages/SendEgvpMessage'
+
+  replies:
+    summary: Exchange to publish reply messages to
+    description: Reply message are routed to the reply queue owned by the client who published the responding request message.
+    address: 'replies.{UserId}'
+    parameters:
+      UserId:
+        description: Verified client identifier of the AMPQ connection.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: replies
+          type: direct
+    messages:
+      EgvpMessageSent:
+        $ref: './components.asyncapi.yaml#/components/messages/EgvpMessageSent'
+      FailedSendingEgvpMessage:
+        $ref: './components.asyncapi.yaml#/components/messages/FailedSendingEgvpMessage'
+
+operations:
+  SendEgvpMessage:
+    summary: Send a message directly to a receiver via the EGVP network.
+    action: receive
+    channel:
+      $ref: '#/channels/requests'
+    messages:
+      - $ref: '#/channels/requests/messages/SendEgvpMessage'
+    reply:
+      address:
+        $ref: './components.asyncapi.yaml#/components/replyAddresses/UserId'
+      channel:
+        $ref: '#/channels/replies'
+      messages:
+        - $ref: '#/channels/replies/messages/EgvpMessageSent'
+        - $ref: '#/channels/replies/messages/FailedSendingEgvpMessage'

@@ -1,0 +1,124 @@
+# $schema: www.asyncapi.com/schema-store/all.schema-store.json
+asyncapi: 3.1.0
+defaultContentType: application/json
+
+info:
+  title: "Basisdienst: ERV Versand - Shared Components"
+  version: 0.0.1
+  description: >
+    Component-only document shared by the postie and the client application
+    specifications. It is not meant to be used on its own, it only exists to
+    keep message, trait and schema definitions in a single place.
+
+components:
+  servers:
+    production:
+      host: <redacted>
+      protocol: amqps
+      protocolVersion: 0-9-1
+
+    staging:
+      host: <redacted>
+      protocol: amqps
+      protocolVersion: 0-9-1
+
+  messages:
+    SendEgvpMessage:
+      summary: Request message to initiate the transfer of an EGVP message to a direct receiver
+      bindings:
+        amqp:
+          messageType: send-egvp-message.v1
+      payload:
+        $ref: './message-payloads/send-egvp-message.v1.json'
+      traits:
+        - $ref: '#/components/messageTraits/RequestMessage'
+
+    EgvpMessageSent:
+      summary: Reply message indicating an EGVP message has been sent successfully
+      bindings:
+        amqp:
+          messageType: egvp-message-sent.v1
+      payload:
+        $ref: './message-payloads/egvp-message-sent.v1.json'
+      traits:
+        - $ref: '#/components/messageTraits/ReplyMessage'
+
+    FailedSendingEgvpMessage:
+      summary: Reply message indicating an EGVP message could
+      bindings:
+        amqp:
+          messageType: failed-sending-egvp-message-v1
+      payload:
+        $ref: './message-payloads/failed-sending-egvp-message.v1.json'
+      traits:
+        - $ref: '#/components/messageTraits/ReplyMessage'
+
+  replyAddresses:
+    UserId:
+      description: >
+        Replies are routed into dedicated queues per client. Only the respective
+        client has the permissions to access its own queue. Thereby, no other
+        client can read the response of another one.
+
+        Routing is based on the user identifier property of a request message.
+        This property is trustfully verified by the message broker against the
+        authenticated user publishing the message.
+
+        Due to limitations of the AsyncAPI standard it points to a header here.
+        Requires a request message to inherit the `RequestMessage` trait
+        including the respective header definition.
+
+      location: '$message.header#/userId'
+
+  messageTraits:
+    RequestMessage:
+      correlationId:
+        $ref: '#/components/correlationIds/AmqpCorrelationId'
+      headers:
+        allOf:
+          - $ref: '#/components/schemas/CorrelationId'
+          - $ref: '#/components/schemas/UserId'
+
+    ReplyMessage:
+      correlationId:
+        $ref: '#/components/correlationIds/AmqpCorrelationId'
+      headers:
+        allOf:
+          - $ref: '#/components/schemas/CorrelationId'
+
+  correlationIds:
+    AmqpCorrelationId:
+      description: >
+        AMQP native `correlation-id` property of a message.
+
+        Due to limitations of the AsyncAPI standard it points to a header here.
+
+      location: '$message.header#/correctionId'
+
+  schemas:
+    CorrelationId:
+      type: object
+      required: [correlationId]
+      properties:
+        correlationId:
+          type: string
+          format: uuid
+          description: >
+            AMQP native `correlation-id` property of a message.
+
+            Due to limitations of the AsyncAPI standard it is documented as
+            a header.
+
+    UserId:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: string
+          description: >
+            AMQP native `user-id` property of a message. Values are trustfully
+            verified by the message broker against the authenticated user
+            publishing the message.
+
+            Due to limitations of the AsyncAPI standard it is documented as
+            a header.

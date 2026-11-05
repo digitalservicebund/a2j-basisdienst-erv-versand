@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "egvp-message-sent.v1",
+  "type": "object",
+  "properties": {},
+  "additionalProperties": false
+}

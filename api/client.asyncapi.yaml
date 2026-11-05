@@ -1,0 +1,71 @@
+# $schema: www.asyncapi.com/schema-store/all.schema-store.json
+asyncapi: 3.1.0
+defaultContentType: application/json
+
+info:
+  title: "Basisdienst: ERV Versand - Client Application"
+  version: 0.0.1
+  description: >
+    Counterpart of the postie application specification. It describes the
+    perspective of a client publishing request messages and consuming the
+    replies from its own dedicated queue.
+
+servers:
+  production:
+    $ref: './components.asyncapi.yaml#/components/servers/production'
+
+  staging:
+    $ref: './components.asyncapi.yaml#/components/servers/staging'
+
+channels:
+  requests:
+    summary: Exchange to publish request messages to
+    description: Reply messages will be routed back to the client specific reply queue.
+    address: requests
+    bindings:
+      amqp:
+        is: routingKey
+        queue:
+          name: requests
+          type: direct
+    messages:
+      SendEgvpMessage:
+        $ref: './components.asyncapi.yaml#/components/messages/SendEgvpMessage'
+
+  replies:
+    summary: Client owned queue to consume reply messages from
+    description: >
+      Every client has its own reply queue bound to the `replies` exchange with
+      its verified user identifier as routing key. Only the owning client has
+      the permissions to consume from it.
+    address: 'replies.{UserId}'
+    parameters:
+      UserId:
+        description: Verified client identifier of the AMPQ connection.
+    bindings:
+      amqp:
+        is: queue
+        queue:
+          name: 'replies.{UserId}'
+    messages:
+      EgvpMessageSent:
+        $ref: './components.asyncapi.yaml#/components/messages/EgvpMessageSent'
+      FailedSendingEgvpMessage:
+        $ref: './components.asyncapi.yaml#/components/messages/FailedSendingEgvpMessage'
+
+operations:
+  SendEgvpMessage:
+    summary: Request to send a message directly to a receiver via the EGVP network.
+    action: send
+    channel:
+      $ref: '#/channels/requests'
+    messages:
+      - $ref: '#/channels/requests/messages/SendEgvpMessage'
+    reply:
+      address:
+        $ref: './components.asyncapi.yaml#/components/replyAddresses/UserId'
+      channel:
+        $ref: '#/channels/replies'
+      messages:
+        - $ref: '#/channels/replies/messages/EgvpMessageSent'
+        - $ref: '#/channels/replies/messages/FailedSendingEgvpMessage'

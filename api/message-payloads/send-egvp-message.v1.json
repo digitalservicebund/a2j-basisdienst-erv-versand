@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "send-egvp-message.v1",
+  "type": "object",
+  "properties": {
+    "safeId": {
+      "type": "string"
+    }
+  },
+  "required": ["safeId"],
+  "additionalProperties": false
+}
