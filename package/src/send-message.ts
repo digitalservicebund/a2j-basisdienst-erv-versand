@@ -113,7 +113,10 @@ async function createVertrauenswuerdigenHerkunftsnachweis(
     }
 
     writeFileSync(herkunftsnachweisXmlOutput, rawHerkunftsnachweis.vhn_xml);
-    writeFileSync(herkunftsnachweisXmlP7sOutput, rawHerkunftsnachweis.vhn_p7s);
+    writeFileSync(
+      herkunftsnachweisXmlP7sOutput,
+      Buffer.from(rawHerkunftsnachweis.vhn_p7s, "base64"),
+    );
 
     return undefined;
   }
