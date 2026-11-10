@@ -3,8 +3,8 @@ import { vibiliaAdapter } from "~/send-example-message";
 import amqp, { type Channel, type Message } from "amqplib";
 import {
   consumeMessages,
-  type InitiateTransferMessage,
-  type TransferSuccessfulMessage,
+  type SendExampleEgvpMessage,
+  type ExampleEgvpMessageSent,
 } from "~/index";
 
 describe("full workflow", () => {
@@ -32,7 +32,7 @@ describe("full workflow", () => {
       signal,
     );
 
-    const request: InitiateTransferMessage = {
+    const request: SendExampleEgvpMessage = {
       receiver: process.env["RECEIVER_SAFE_ID"]!,
     };
 
@@ -51,7 +51,7 @@ describe("full workflow", () => {
   });
 });
 
-function parseMessage(message: Message | null): TransferSuccessfulMessage {
+function parseMessage(message: Message | null): ExampleEgvpMessageSent {
   const parsedContent = JSON.parse(message?.content.toString() ?? "");
 
   if (

@@ -1,24 +1,38 @@
-import { readFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, type PathOrFileDescriptor } from "node:fs";
+import path from "node:path";
 import ky, { type KyInstance } from "ky";
-
-const xjustizNachricht = readFileSync(
-  new URL('./xjustiz_nachricht.xml', import.meta.url),
-  'utf-8'
-)
 
 export async function sendExampleMessage(
   receiver: SafeID,
   vibilia: VibiliaAdapter,
+  xjustizNachricht: URL,
 ): Promise<MessageID> {
-  const herkunftsnachweis = await createVertrauenswuerdigenHerkunftsnachweis(
-    xjustizNachricht,
+  const messageWorkingDirectoryId = globalThis.crypto.randomUUID();
+
+  mkdirSync(messageWorkingDirectoryId, { recursive: true });
+
+  const herkunftsnachweisXmlOutput = path.join(messageWorkingDirectoryId, `vhn.xml`);
+  const herkunftsnachweisP7sOutput = path.join(messageWorkingDirectoryId, `vhn.p7s`);
+  const xjustizNachrichtOutput = path.join(
+    messageWorkingDirectoryId,
+    `xjustiz_nachricht.xml`,
+  );
+
+  const xjustizNachrichtText = await ky.get(xjustizNachricht).text();
+  writeFileSync(xjustizNachrichtOutput, xjustizNachrichtText);
+
+  await createVertrauenswuerdigenHerkunftsnachweis(
+    xjustizNachrichtOutput,
     vibilia,
+    herkunftsnachweisXmlOutput,
+    herkunftsnachweisP7sOutput,
   );
 
   const messageId = await initiateTransfer(
     receiver,
-    xjustizNachricht,
-    herkunftsnachweis,
+    xjustizNachrichtOutput,
+    herkunftsnachweisXmlOutput,
+    herkunftsnachweisP7sOutput,
     vibilia,
   );
 
@@ -31,7 +45,9 @@ export async function sendExampleMessage(
 async function createVertrauenswuerdigenHerkunftsnachweis(
   xjustizNachricht: XML,
   vibilia: VibiliaAdapter,
-): Promise<VertrauenswuerdigerHerkunftsnachweis> {
+  herkunftsnachweisXmlOutput: PathOrFileDescriptor,
+  herkunftsnachweisP7sOutput: PathOrFileDescriptor,
+): Promise<void> {
   const correlationID = globalThis.crypto.randomUUID();
 
   const response = await vibilia.api
@@ -61,25 +77,26 @@ async function createVertrauenswuerdigenHerkunftsnachweis(
       );
     }
 
-    return {
-      sessionContainer: rawHerkunftsnachweis.vhn_xml,
-      signature: rawHerkunftsnachweis.vhn_p7s,
-    };
+    writeFileSync(herkunftsnachweisXmlOutput, rawHerkunftsnachweis.vhn_xml);
+    writeFileSync(herkunftsnachweisP7sOutput, rawHerkunftsnachweis.vhn_p7s);
+
+    return undefined;
   }
 }
 
 async function initiateTransfer(
   receiver: SafeID,
-  xjustizNachricht: XML,
-  herkunftsnachweis: VertrauenswuerdigerHerkunftsnachweis,
+  xjustizNachricht: PathOrFileDescriptor,
+  herkunftsnachweisXml: PathOrFileDescriptor,
+  herkunftsnachweisP7s: PathOrFileDescriptor,
   vibilia: VibiliaAdapter,
 ): Promise<string> {
   const response = await vibilia.api
     .post<SendMessageApiResponse>(vibilia.sendMessagePath(receiver), {
       json: {
-        vhn_xml: herkunftsnachweis.sessionContainer,
-        vhn_p7s: herkunftsnachweis.signature,
-        xjustiz_xml: xjustizNachricht,
+        vhn_xml_filepath: herkunftsnachweisXml,
+        vhn_p7s_filepath: herkunftsnachweisP7s,
+        xjustiz_xml_filepath: xjustizNachricht,
         attachment_filepaths: [],
       },
     })
@@ -119,13 +136,7 @@ export type VibiliaAdapter = {
 export type SafeID = string;
 export type MessageID = string;
 
-type VertrauenswuerdigerHerkunftsnachweis = {
-  sessionContainer: XML;
-  signature: Base64Data;
-};
-
 type XML = string;
-type Base64Data = string;
 
 type CreateVhnApiResponse =
   | {
@@ -138,7 +149,7 @@ type SendMessageApiResponse =
   | { error_message: string };
 
 if (import.meta.vitest) {
-  const { describe, it, expect, inject } = import.meta.vitest;
+  const { describe, it, expect } = import.meta.vitest;
 
   describe("Vibilia REST integration", async () => {
     it("should just work somehow", async () => {
@@ -148,23 +159,48 @@ if (import.meta.vitest) {
         process.env["SENDER_MESSAGE_BOX_PASSWORD"]!,
       );
 
-      await sendExampleMessage(process.env["RECEIVER_SAFE_ID"]!, vibilia);
+      await sendExampleMessage(
+        process.env["RECEIVER_SAFE_ID"]!,
+        vibilia,
+        new URL(
+          "https://drive.usercontent.google.com/download?id=1BI_iQp-AAVk7PECEGAFTC6FtUCGs01Vg&export=download&authuser=0&confirm=t&uuid=4cc50a53-3b74-4277-b487-5142d2ead333&at=AMrWOn0axqQarlzLUiJyHIxsfZ0m%3A1794230370010",
+        ),
+      );
     });
 
     it("creates a VertrauenswuerdigenHerkunftsnachweis through Vibilia", async () => {
+      const { readFileSync } = await import("node:fs");
+
+      const xjustizNachricht = readFileSync(
+        new URL("./xjustiz_nachricht.xml", import.meta.url),
+        "utf-8",
+      );
       const vibilia = vibiliaAdapter(
         new URL("http://localhost:8080"),
         process.env["SENDER_SAFE_ID"]!,
         process.env["SENDER_MESSAGE_BOX_PASSWORD"]!,
       );
+      const messageWorkingDirectoryId = globalThis.crypto.randomUUID();
 
-      const herkunftsnachweis =
-        await createVertrauenswuerdigenHerkunftsnachweis(
-          xjustizNachricht,
-          vibilia,
-        );
+      mkdirSync(messageWorkingDirectoryId, { recursive: true });
+      const herkunftsnachweisXmlOutput = path.join(
+        messageWorkingDirectoryId,
+        "vhn.xml",
+      );
+      const herkunftsnachweisP7sOutput = path.join(
+        messageWorkingDirectoryId,
+        "vhn.p7s",
+      );
 
-      expect(herkunftsnachweis).toBeDefined();
+      await createVertrauenswuerdigenHerkunftsnachweis(
+        xjustizNachricht,
+        vibilia,
+        herkunftsnachweisXmlOutput,
+        herkunftsnachweisP7sOutput,
+      );
+
+      expect(readFileSync(herkunftsnachweisXmlOutput, "utf-8")).toBeTruthy();
+      expect(readFileSync(herkunftsnachweisP7sOutput, "utf-8")).toBeTruthy();
     });
   });
 }
