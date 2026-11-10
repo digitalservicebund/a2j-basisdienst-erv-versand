@@ -53,7 +53,7 @@ export async function consumeMessages(
 ) {
   const consumer = await messageBroker.consume(
     queueNames.requests,
-    handleInitiateTransferMessage.bind({
+    handleSendExampleEgvpMessage.bind({
       vibilia,
       messageBroker,
       responseQueueName: queueNames.responses,
@@ -67,7 +67,7 @@ export async function consumeMessages(
   );
 }
 
-async function handleInitiateTransferMessage(
+async function handleSendExampleEgvpMessage(
   this: {
     vibilia: VibiliaAdapter;
     messageBroker: Channel;
@@ -82,9 +82,15 @@ async function handleInitiateTransferMessage(
 
   try {
     const request = parseMessage(message);
-    const messageId = await sendExampleMessage(request.receiver, this.vibilia);
+    const messageId = await sendExampleMessage(
+      request.receiver,
+      this.vibilia,
+      new URL(
+        "https://drive.usercontent.google.com/download?id=1BI_iQp-AAVk7PECEGAFTC6FtUCGs01Vg&export=download&authuser=0&confirm=t&uuid=4cc50a53-3b74-4277-b487-5142d2ead333&at=AMrWOn0axqQarlzLUiJyHIxsfZ0m%3A1794230370010",
+      ),
+    );
 
-    const response: TransferSuccessfulMessage = { messageId };
+    const response: ExampleEgvpMessageSent = { messageId };
 
     this.messageBroker.sendToQueue(
       this.responseQueueName,
@@ -97,11 +103,12 @@ async function handleInitiateTransferMessage(
   }
 }
 
-function parseMessage(message: Message): InitiateTransferMessage {
+function parseMessage(message: Message): SendExampleEgvpMessage {
   const parsedContent = JSON.parse(message.content.toString());
 
   if (
     typeof parsedContent === "object" &&
+    parsedContent !== null &&
     "receiver" in parsedContent &&
     typeof parsedContent.receiver === "string"
   ) {
@@ -112,10 +119,10 @@ function parseMessage(message: Message): InitiateTransferMessage {
   }
 }
 
-export type InitiateTransferMessage = {
+export type SendExampleEgvpMessage = {
   receiver: SafeID;
 };
 
-export type TransferSuccessfulMessage = {
+export type ExampleEgvpMessageSent = {
   messageId: MessageID;
 };
