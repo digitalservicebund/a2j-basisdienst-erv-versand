@@ -1,9 +1,5 @@
-import {
-  mkdirSync,
-  writeFile,
-  writeFileSync,
-  type PathOrFileDescriptor,
-} from "node:fs";
+import { mkdirSync, writeFileSync, type PathOrFileDescriptor } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import ky, { type KyInstance } from "ky";
 
@@ -36,7 +32,7 @@ export async function sendMessage(
   const xjustizNachrichtText = await ky.get(xjustizNachricht).text();
   writeFileSync(xjustizNachrichtOutput, xjustizNachrichtText);
 
-  downloadAttachments(attachments ?? [], messageWorkingDirectory);
+  await downloadAttachments(attachments ?? [], messageWorkingDirectory);
 
   const attachmentFilePaths =
     attachments?.map(({ name }) => path.join(messageWorkingDirectory, name)) ??
@@ -69,13 +65,13 @@ async function downloadAttachments(
   attachments: Attachment[],
   messageWorkingDirectory: string,
 ): Promise<void> {
-  Promise.all(
+  await Promise.all(
     attachments.map(async (attachment): Promise<void> => {
       const output = path.join(messageWorkingDirectory, attachment.name);
-      const content = await ky.get(attachment.source).text();
-      return new Promise((resolve) =>
-        writeFile(output, content, {}, () => resolve()),
+      const content = Buffer.from(
+        await ky.get(attachment.source).arrayBuffer(),
       );
+      await writeFile(output, content);
     }),
   );
 }
@@ -207,9 +203,7 @@ if (import.meta.vitest) {
       await sendMessage(
         process.env["RECEIVER_SAFE_ID"]!,
         vibilia,
-        new URL(
-          "https://drive.usercontent.google.com/download?id=1BI_iQp-AAVk7PECEGAFTC6FtUCGs01Vg&export=download&authuser=0&confirm=t&uuid=4cc50a53-3b74-4277-b487-5142d2ead333&at=AMrWOn0axqQarlzLUiJyHIxsfZ0m%3A1794230370010",
-        ),
+        "https://drive.usercontent.google.com/download?id=1BI_iQp-AAVk7PECEGAFTC6FtUCGs01Vg&export=download&authuser=0&confirm=t&uuid=4cc50a53-3b74-4277-b487-5142d2ead333&at=AMrWOn0axqQarlzLUiJyHIxsfZ0m%3A1794230370010",
       );
     });
 
@@ -239,6 +233,7 @@ if (import.meta.vitest) {
 
       await createVertrauenswuerdigenHerkunftsnachweis(
         xjustizNachricht,
+        [],
         vibilia,
         herkunftsnachweisXmlOutput,
         herkunftsnachweisP7sOutput,

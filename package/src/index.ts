@@ -7,7 +7,7 @@ import {
   type MessageID,
   type SafeID,
   type VibiliaAdapter,
-} from "./send-message.js";
+} from "./send-message.ts";
 
 async function main() {
   await loadMountedSecrets();
@@ -92,9 +92,8 @@ async function handleSendExampleEgvpMessage(
     const messageId = await sendMessage(
       request.receiver,
       context.vibilia,
-      new URL(
+      
         "https://drive.usercontent.google.com/download?id=1BI_iQp-AAVk7PECEGAFTC6FtUCGs01Vg&export=download&authuser=0&confirm=t&uuid=4cc50a53-3b74-4277-b487-5142d2ead333&at=AMrWOn0axqQarlzLUiJyHIxsfZ0m%3A1794230370010",
-      ),
     );
 
     const response: ExampleEgvpMessageSent = { messageId };
@@ -166,7 +165,7 @@ function parseSendEgvpMessage(message: Message): SendEgvpMessage {
     "receiver" in parsedContent &&
     typeof parsedContent.receiver === "string" &&
     "xjustizNachricht" in parsedContent &&
-    typeof parsedContent.xjustizNachrichtUrl === "string" &&
+    typeof parsedContent.xjustizNachricht === "string" &&
     (!("attachments" in parsedContent) ||
       (Array.isArray(parsedContent.attachments) &&
         parsedContent.attachments.every(
