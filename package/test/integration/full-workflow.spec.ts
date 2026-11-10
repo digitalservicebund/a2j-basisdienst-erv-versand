@@ -1,5 +1,5 @@
 import { describe, it, inject, expect } from "vitest";
-import { vibiliaAdapter } from "~/send-example-message";
+import { vibiliaAdapter } from "~/send-message";
 import amqp, { type Channel, type Message } from "amqplib";
 import {
   consumeMessages,

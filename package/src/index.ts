@@ -2,37 +2,35 @@ import amqp, { type Message, type Channel } from "amqplib";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
-  sendExampleMessage,
+  sendMessage,
   vibiliaAdapter,
   type MessageID,
   type SafeID,
   type VibiliaAdapter,
-} from "./send-example-message.ts";
+} from "./send-message.js";
 
 async function main() {
-    await loadMountedSecrets();
+  await loadMountedSecrets();
 
-    const connection = await amqp.connect(process.env["AMQP_URL"] ?? "amqp://localhost:5671");
-    const channel = await connection.createChannel();
-    const requestsQueueName = "requests";
-    const responsesQueueName = "responses";
-    channel.assertQueue(requestsQueueName);
-    channel.assertQueue(responsesQueueName);
+  const connection = await amqp.connect(
+    process.env["AMQP_URL"] ?? "amqp://localhost:5671",
+  );
+  const channel = await connection.createChannel();
+  const requestsQueueName = "requests";
+  const responsesQueueName = "responses";
+  channel.assertQueue(requestsQueueName);
+  channel.assertQueue(responsesQueueName);
 
-    const vibilia = vibiliaAdapter(
-      new URL(process.env["VIBILIA_BASE_URL"]!),
-      process.env["SENDER_SAFE_ID"]!,
-      process.env["SENDER_MESSAGE_BOX_PASSWORD"]!,
-    );
+  const vibilia = vibiliaAdapter(
+    new URL(process.env["VIBILIA_BASE_URL"]!),
+    process.env["SENDER_SAFE_ID"]!,
+    process.env["SENDER_MESSAGE_BOX_PASSWORD"]!,
+  );
 
-    consumeMessages(
-      vibilia,
-      channel,
-      {
-        requests: requestsQueueName,
-        responses: responsesQueueName,
-      },
-    );
+  consumeMessages(vibilia, channel, {
+    requests: requestsQueueName,
+    responses: responsesQueueName,
+  });
 }
 
 main();
@@ -40,7 +38,9 @@ main();
 export async function loadMountedSecrets(secretsDir = "/etc/secrets") {
   for (const name of await readdir(secretsDir).catch(() => [])) {
     if (!name.startsWith(".")) {
-      process.env[name] ??= (await readFile(join(secretsDir, name), "utf8")).trim();
+      process.env[name] ??= (
+        await readFile(join(secretsDir, name), "utf8")
+      ).trim();
     }
   }
 }
@@ -89,7 +89,7 @@ async function handleSendExampleEgvpMessage(
 
   try {
     const request = parseSendExampleEgvpMessage(message);
-    const messageId = await sendExampleMessage(
+    const messageId = await sendMessage(
       request.receiver,
       context.vibilia,
       new URL(
@@ -121,10 +121,11 @@ async function handleSendEgvpMessage(
 
   try {
     const request = parseSendEgvpMessage(message);
-    const messageId = await sendExampleMessage(
+    const messageId = await sendMessage(
       request.receiver,
       context.vibilia,
-      request.xjustizNachrichtUrl,
+      request.xjustizNachricht,
+      request.attachments,
     );
 
     const response: EgvpMessageSent = { messageId };
@@ -164,12 +165,24 @@ function parseSendEgvpMessage(message: Message): SendEgvpMessage {
     parsedContent !== null &&
     "receiver" in parsedContent &&
     typeof parsedContent.receiver === "string" &&
-    "xjustizNachrichtUrl" in parsedContent &&
-    typeof parsedContent.xjustizNachrichtUrl === "string"
+    "xjustizNachricht" in parsedContent &&
+    typeof parsedContent.xjustizNachrichtUrl === "string" &&
+    (!("attachments" in parsedContent) ||
+      (Array.isArray(parsedContent.attachments) &&
+        parsedContent.attachments.every(
+          (maybeAttachment: unknown) =>
+            typeof maybeAttachment === "object" &&
+            maybeAttachment != null &&
+            "name" in maybeAttachment &&
+            typeof maybeAttachment.name === "string" &&
+            "source" in maybeAttachment &&
+            typeof maybeAttachment.source === "string",
+        )))
   ) {
     return {
       receiver: parsedContent.receiver,
-      xjustizNachrichtUrl: new URL(parsedContent.xjustizNachrichtUrl),
+      xjustizNachricht: parsedContent.xjustizNachricht,
+      attachments: parsedContent.attachments,
     };
   } else {
     console.error("broken message", message.content.toString());
@@ -187,7 +200,13 @@ export type ExampleEgvpMessageSent = {
 
 export type SendEgvpMessage = {
   receiver: SafeID;
-  xjustizNachrichtUrl: URL;
+  xjustizNachricht: string;
+  attachments?: Attachment[];
+};
+
+export type Attachment = {
+  name: string;
+  source: string;
 };
 
 export type EgvpMessageSent = {

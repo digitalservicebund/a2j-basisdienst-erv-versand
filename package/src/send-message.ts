@@ -1,28 +1,50 @@
-import { mkdirSync, writeFileSync, type PathOrFileDescriptor } from "node:fs";
+import {
+  mkdirSync,
+  writeFile,
+  writeFileSync,
+  type PathOrFileDescriptor,
+} from "node:fs";
 import path from "node:path";
 import ky, { type KyInstance } from "ky";
 
-export async function sendExampleMessage(
+export async function sendMessage(
   receiver: SafeID,
   vibilia: VibiliaAdapter,
-  xjustizNachricht: URL,
+  xjustizNachricht: string,
+  attachments?: Attachment[],
 ): Promise<MessageID> {
-  const messageWorkingDirectoryId = globalThis.crypto.randomUUID();
+  const messageWorkingDirectory = path.join(
+    "/work",
+    globalThis.crypto.randomUUID(),
+  );
 
-  mkdirSync(messageWorkingDirectoryId, { recursive: true });
+  mkdirSync(messageWorkingDirectory, { recursive: true });
 
-  const herkunftsnachweisXmlOutput = path.join(messageWorkingDirectoryId, `vhn.xml`);
-  const herkunftsnachweisP7sOutput = path.join(messageWorkingDirectoryId, `vhn.p7s`);
+  const herkunftsnachweisXmlOutput = path.join(
+    messageWorkingDirectory,
+    `vhn.xml`,
+  );
+  const herkunftsnachweisP7sOutput = path.join(
+    messageWorkingDirectory,
+    `vhn.p7s`,
+  );
   const xjustizNachrichtOutput = path.join(
-    messageWorkingDirectoryId,
+    messageWorkingDirectory,
     `xjustiz_nachricht.xml`,
   );
 
   const xjustizNachrichtText = await ky.get(xjustizNachricht).text();
   writeFileSync(xjustizNachrichtOutput, xjustizNachrichtText);
 
+  downloadAttachments(attachments ?? [], messageWorkingDirectory);
+
+  const attachmentFilePaths =
+    attachments?.map(({ name }) => path.join(messageWorkingDirectory, name)) ??
+    [];
+
   await createVertrauenswuerdigenHerkunftsnachweis(
     xjustizNachrichtOutput,
+    attachmentFilePaths,
     vibilia,
     herkunftsnachweisXmlOutput,
     herkunftsnachweisP7sOutput,
@@ -30,9 +52,10 @@ export async function sendExampleMessage(
 
   const messageId = await initiateTransfer(
     receiver,
-    xjustizNachrichtOutput,
     herkunftsnachweisXmlOutput,
     herkunftsnachweisP7sOutput,
+    xjustizNachrichtOutput,
+    attachmentFilePaths,
     vibilia,
   );
 
@@ -42,8 +65,24 @@ export async function sendExampleMessage(
   return messageId;
 }
 
+async function downloadAttachments(
+  attachments: Attachment[],
+  messageWorkingDirectory: string,
+): Promise<void> {
+  Promise.all(
+    attachments.map(async (attachment): Promise<void> => {
+      const output = path.join(messageWorkingDirectory, attachment.name);
+      const content = await ky.get(attachment.source).text();
+      return new Promise((resolve) =>
+        writeFile(output, content, {}, () => resolve()),
+      );
+    }),
+  );
+}
+
 async function createVertrauenswuerdigenHerkunftsnachweis(
   xjustizNachricht: XML,
+  attachmentFilePaths: string[],
   vibilia: VibiliaAdapter,
   herkunftsnachweisXmlOutput: PathOrFileDescriptor,
   herkunftsnachweisP7sOutput: PathOrFileDescriptor,
@@ -58,7 +97,7 @@ async function createVertrauenswuerdigenHerkunftsnachweis(
           {
             vhn_id: correlationID,
             xjustiz_xml_or_filepath: xjustizNachricht,
-            attachment_filepaths: [],
+            attachment_filepaths: attachmentFilePaths,
           },
         ],
       },
@@ -86,18 +125,19 @@ async function createVertrauenswuerdigenHerkunftsnachweis(
 
 async function initiateTransfer(
   receiver: SafeID,
-  xjustizNachricht: PathOrFileDescriptor,
-  herkunftsnachweisXml: PathOrFileDescriptor,
-  herkunftsnachweisP7s: PathOrFileDescriptor,
+  herkunftsnachweisXmlFilePath: string,
+  herkunftsnachweisP7sFilePath: string,
+  xjustizNachricht: string,
+  attachmentFilePaths: string[],
   vibilia: VibiliaAdapter,
 ): Promise<string> {
   const response = await vibilia.api
     .post<SendMessageApiResponse>(vibilia.sendMessagePath(receiver), {
       json: {
-        vhn_xml_filepath: herkunftsnachweisXml,
-        vhn_p7s_filepath: herkunftsnachweisP7s,
+        vhn_xml_filepath: herkunftsnachweisXmlFilePath,
+        vhn_p7s_filepath: herkunftsnachweisP7sFilePath,
         xjustiz_xml_filepath: xjustizNachricht,
-        attachment_filepaths: [],
+        attachment_filepaths: attachmentFilePaths,
       },
     })
     .json();
@@ -148,6 +188,11 @@ type SendMessageApiResponse =
   | { message_id: MessageID }
   | { error_message: string };
 
+type Attachment = {
+  name: string;
+  source: string;
+};
+
 if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
@@ -159,7 +204,7 @@ if (import.meta.vitest) {
         process.env["SENDER_MESSAGE_BOX_PASSWORD"]!,
       );
 
-      await sendExampleMessage(
+      await sendMessage(
         process.env["RECEIVER_SAFE_ID"]!,
         vibilia,
         new URL(
