@@ -20,9 +20,9 @@ export async function sendMessage(
     messageWorkingDirectory,
     `vhn.xml`,
   );
-  const herkunftsnachweisP7sOutput = path.join(
+  const herkunftsnachweisXmlP7sOutput = path.join(
     messageWorkingDirectory,
-    `vhn.p7s`,
+    `vhn.xml.p7s`,
   );
   const xjustizNachrichtOutput = path.join(
     messageWorkingDirectory,
@@ -43,13 +43,13 @@ export async function sendMessage(
     attachmentFilePaths,
     vibilia,
     herkunftsnachweisXmlOutput,
-    herkunftsnachweisP7sOutput,
+    herkunftsnachweisXmlP7sOutput,
   );
 
   const messageId = await initiateTransfer(
     receiver,
     herkunftsnachweisXmlOutput,
-    herkunftsnachweisP7sOutput,
+    herkunftsnachweisXmlP7sOutput,
     xjustizNachrichtOutput,
     attachmentFilePaths,
     vibilia,
@@ -81,7 +81,7 @@ async function createVertrauenswuerdigenHerkunftsnachweis(
   attachmentFilePaths: string[],
   vibilia: VibiliaAdapter,
   herkunftsnachweisXmlOutput: PathOrFileDescriptor,
-  herkunftsnachweisP7sOutput: PathOrFileDescriptor,
+  herkunftsnachweisXmlP7sOutput: PathOrFileDescriptor,
 ): Promise<void> {
   const correlationID = globalThis.crypto.randomUUID();
 
@@ -113,7 +113,7 @@ async function createVertrauenswuerdigenHerkunftsnachweis(
     }
 
     writeFileSync(herkunftsnachweisXmlOutput, rawHerkunftsnachweis.vhn_xml);
-    writeFileSync(herkunftsnachweisP7sOutput, rawHerkunftsnachweis.vhn_p7s);
+    writeFileSync(herkunftsnachweisXmlP7sOutput, rawHerkunftsnachweis.vhn_p7s);
 
     return undefined;
   }
@@ -226,9 +226,9 @@ if (import.meta.vitest) {
         messageWorkingDirectoryId,
         "vhn.xml",
       );
-      const herkunftsnachweisP7sOutput = path.join(
+      const herkunftsnachweisXmlP7sOutput = path.join(
         messageWorkingDirectoryId,
-        "vhn.p7s",
+        "vhn.xml.p7s",
       );
 
       await createVertrauenswuerdigenHerkunftsnachweis(
@@ -236,11 +236,11 @@ if (import.meta.vitest) {
         [],
         vibilia,
         herkunftsnachweisXmlOutput,
-        herkunftsnachweisP7sOutput,
+        herkunftsnachweisXmlP7sOutput,
       );
 
       expect(readFileSync(herkunftsnachweisXmlOutput, "utf-8")).toBeTruthy();
-      expect(readFileSync(herkunftsnachweisP7sOutput, "utf-8")).toBeTruthy();
+      expect(readFileSync(herkunftsnachweisXmlP7sOutput, "utf-8")).toBeTruthy();
     });
   });
 }
