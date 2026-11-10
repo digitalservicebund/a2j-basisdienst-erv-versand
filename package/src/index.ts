@@ -51,13 +51,24 @@ export async function consumeMessages(
   queueNames: { requests: string; responses: string },
   abortSignal?: AbortSignal,
 ) {
+  const context = {
+    vibilia,
+    messageBroker,
+    responseQueueName: queueNames.responses,
+  };
+
   const consumer = await messageBroker.consume(
     queueNames.requests,
-    handleSendExampleEgvpMessage.bind({
-      vibilia,
-      messageBroker,
-      responseQueueName: queueNames.responses,
-    }),
+    (message) => {
+      switch (message?.properties.type) {
+        case "send-example-egvp-message":
+          handleSendExampleEgvpMessage(context, message);
+          break;
+        case "send-egvp-message":
+          handleSendEgvpMessage(context, message);
+          break;
+      }
+    },
   );
 
   abortSignal?.addEventListener(
@@ -68,11 +79,7 @@ export async function consumeMessages(
 }
 
 async function handleSendExampleEgvpMessage(
-  this: {
-    vibilia: VibiliaAdapter;
-    messageBroker: Channel;
-    responseQueueName: string;
-  },
+  context: MessageHandlerContext,
   message: Message | null,
 ): Promise<void> {
   if (message === null) {
@@ -81,10 +88,10 @@ async function handleSendExampleEgvpMessage(
   }
 
   try {
-    const request = parseMessage(message);
+    const request = parseSendExampleEgvpMessage(message);
     const messageId = await sendExampleMessage(
       request.receiver,
-      this.vibilia,
+      context.vibilia,
       new URL(
         "https://drive.usercontent.google.com/download?id=1BI_iQp-AAVk7PECEGAFTC6FtUCGs01Vg&export=download&authuser=0&confirm=t&uuid=4cc50a53-3b74-4277-b487-5142d2ead333&at=AMrWOn0axqQarlzLUiJyHIxsfZ0m%3A1794230370010",
       ),
@@ -92,18 +99,48 @@ async function handleSendExampleEgvpMessage(
 
     const response: ExampleEgvpMessageSent = { messageId };
 
-    this.messageBroker.sendToQueue(
-      this.responseQueueName,
+    context.messageBroker.sendToQueue(
+      context.responseQueueName,
       Buffer.from(JSON.stringify(response)),
     );
 
-    this.messageBroker.ack(message);
+    context.messageBroker.ack(message);
   } catch (error) {
     console.error("Failed to handle message:", error);
   }
 }
 
-function parseMessage(message: Message): SendExampleEgvpMessage {
+async function handleSendEgvpMessage(
+  context: MessageHandlerContext,
+  message: Message | null,
+): Promise<void> {
+  if (message === null) {
+    console.error("Why was there a 'null' message?");
+    return;
+  }
+
+  try {
+    const request = parseSendEgvpMessage(message);
+    const messageId = await sendExampleMessage(
+      request.receiver,
+      context.vibilia,
+      request.xjustizNachrichtUrl,
+    );
+
+    const response: EgvpMessageSent = { messageId };
+
+    context.messageBroker.sendToQueue(
+      context.responseQueueName,
+      Buffer.from(JSON.stringify(response)),
+    );
+
+    context.messageBroker.ack(message);
+  } catch (error) {
+    console.error("Failed to handle message:", error);
+  }
+}
+
+function parseSendExampleEgvpMessage(message: Message): SendExampleEgvpMessage {
   const parsedContent = JSON.parse(message.content.toString());
 
   if (
@@ -119,10 +156,46 @@ function parseMessage(message: Message): SendExampleEgvpMessage {
   }
 }
 
+function parseSendEgvpMessage(message: Message): SendEgvpMessage {
+  const parsedContent = JSON.parse(message.content.toString());
+
+  if (
+    typeof parsedContent === "object" &&
+    parsedContent !== null &&
+    "receiver" in parsedContent &&
+    typeof parsedContent.receiver === "string" &&
+    "xjustizNachrichtUrl" in parsedContent &&
+    typeof parsedContent.xjustizNachrichtUrl === "string"
+  ) {
+    return {
+      receiver: parsedContent.receiver,
+      xjustizNachrichtUrl: new URL(parsedContent.xjustizNachrichtUrl),
+    };
+  } else {
+    console.error("broken message", message.content.toString());
+    throw new Error("Failed to parse message from broker.");
+  }
+}
+
 export type SendExampleEgvpMessage = {
   receiver: SafeID;
 };
 
 export type ExampleEgvpMessageSent = {
   messageId: MessageID;
+};
+
+export type SendEgvpMessage = {
+  receiver: SafeID;
+  xjustizNachrichtUrl: URL;
+};
+
+export type EgvpMessageSent = {
+  messageId: MessageID;
+};
+
+type MessageHandlerContext = {
+  vibilia: VibiliaAdapter;
+  messageBroker: Channel;
+  responseQueueName: string;
 };
