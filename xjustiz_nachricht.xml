@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tns:nachricht.gds.uebermittlungSchriftgutobjekte.0005005 xmlns:tns="http://www.xjustiz.de" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:din91379="urn:xoevde:kosit:xoev:datentyp:din-91379_2022-08" xsi:schemaLocation="http://www.xjustiz.de xjustiz_0005_nachrichten_3_1.xsd">
+  <tns:nachrichtenkopf xjustizVersion="3.6.2">
+    <tns:erstellungszeitpunkt>2026-11-10T12:00:00</tns:erstellungszeitpunkt>
+
+    <tns:absender>
+      <tns:informationen>
+        <tns:auswahl_kommunikationspartner>
+          <tns:sonstige>DigitalService GmbH des Bundes - Projekt Zugang zum Recht</tns:sonstige>
+        </tns:auswahl_kommunikationspartner>
+      </tns:informationen>
+
+      <tns:eigeneNachrichtenID>66692b3a-140f-436e-bac1-fbb6d4b11560</tns:eigeneNachrichtenID>
+    </tns:absender>
+
+    <tns:empfaenger>
+      <tns:informationen>
+        <tns:auswahl_kommunikationspartner>
+          <tns:sonstige>Test Empfänger</tns:sonstige>
+        </tns:auswahl_kommunikationspartner>
+      </tns:informationen>
+
+      <tns:auswahl_aktenzeichen>
+        <tns:aktenzeichen.neu>true</tns:aktenzeichen.neu>
+      </tns:auswahl_aktenzeichen>
+    </tns:empfaenger>
+
+    <tns:herstellerinformation>
+      <tns:nameDesProdukts>Test</tns:nameDesProdukts>
+      <tns:herstellerDesProdukts>Test</tns:herstellerDesProdukts>
+      <tns:version>Test</tns:version>
+    </tns:herstellerinformation>
+  </tns:nachrichtenkopf>
+
+  <tns:grunddaten>
+    <tns:verfahrensdaten>
+      <tns:instanzdaten>
+        <tns:auswahl_instanzbehoerde>
+          <tns:sonstige>Testinstanz</tns:sonstige>
+        </tns:auswahl_instanzbehoerde>
+
+        <tns:kurzrubrum>Testnachricht mit PDF Anhang</tns:kurzrubrum>
+      </tns:instanzdaten>
+      </tns:verfahrensdaten>
+  </tns:grunddaten>
+
+  <tns:schriftgutobjekte>
+    <tns:dokument>
+      <tns:identifikation>
+        <tns:id>1d254c84-84a1-432d-bef2-dfe75bee883e</tns:id>
+        <tns:nummerImUebergeordnetenContainer>1</tns:nummerImUebergeordnetenContainer>
+      </tns:identifikation>
+
+      <tns:xjustiz.fachspezifischeDaten>
+        <tns:dokumentklasse listVersionID="1.3">
+          <code>001</code>
+        </tns:dokumentklasse>
+
+        <tns:anzeigename>Nachrichtentext.pdf</tns:anzeigename>
+
+        <tns:datei>
+          <tns:dateiname>Nachrichtentext.pdf</tns:dateiname>
+
+          <tns:bestandteil listVersionID="2.5">
+            <code>001</code>
+          </tns:bestandteil>
+        </tns:datei>
+      </tns:xjustiz.fachspezifischeDaten>
+    </tns:dokument>
+  </tns:schriftgutobjekte>
+</tns:nachricht.gds.uebermittlungSchriftgutobjekte.0005005>
