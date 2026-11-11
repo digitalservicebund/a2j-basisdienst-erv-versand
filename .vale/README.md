@@ -1,1 +1,0 @@
-../documentation/tool-usage/vale.md

@@ -1,0 +1,2 @@
+
+312fc7eea20a046c1700639f72effabf77b2289d125f4b81ab2a9dd1b37dd12d	{"key":"GET:https://api.github.com/advisories?ecosystem=actions&affects=aquasecurity%2Ftrivy-action%40v0.36.0","integrity":"sha256-lui+nge+hmnevyOefjk/e5DlWPUPcOdIyw2hDSm0gQU=","time":1794319155942,"size":3114,"metadata":null,"raw_metadata":null}

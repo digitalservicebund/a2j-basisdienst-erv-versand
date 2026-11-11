@@ -1,0 +1,2 @@
+
+602511810b38c290a9bc2f3fc4b3f1180975488c1cec6a5e00e8a5a13e856697	{"key":"GET:https://api.github.com/advisories?ecosystem=actions&affects=docker%2Flogin-action%40v4.2.0","integrity":"sha256-wHMLMmyfbKYt1NzKTJzd85JPy0Sj8fd2DfuQsxsflso=","time":1794319154955,"size":3100,"metadata":null,"raw_metadata":null}

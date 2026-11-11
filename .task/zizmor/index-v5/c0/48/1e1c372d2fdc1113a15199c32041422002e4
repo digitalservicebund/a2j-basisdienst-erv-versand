@@ -1,0 +1,2 @@
+
+319defe06d3afce70eee4f65381508c7f8cb97eb02ac67f23780e3b7926947f9	{"key":"GET:https://api.github.com/advisories?ecosystem=actions&affects=anchore%2Fsbom-action%40v0.24.0","integrity":"sha256-B9JqVLvK56OXMJr+gJR3AEISCIbK4jjzDUrQHWB7GqU=","time":1794319155208,"size":3101,"metadata":null,"raw_metadata":null}

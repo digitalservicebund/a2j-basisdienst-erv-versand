@@ -1,0 +1,2 @@
+
+5822b76ec282c5b67c0ee2640cb51dd726b0f90b5821a175364883e4aa3d1a86	{"key":"GET:https://api.github.com/advisories?ecosystem=actions&affects=actions%2Fcheckout%40v7.0.0","integrity":"sha256-DM1eNKIyLPlR0kZ8NYQoIT9cz9tdmfAyn1hpihb3GhU=","time":1794319154699,"size":3094,"metadata":null,"raw_metadata":null}
