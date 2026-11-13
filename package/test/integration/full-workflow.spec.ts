@@ -9,28 +9,25 @@ vi.mock("~/send-message", async (importOriginal) => ({
 }));
 
 describe("full workflow", () => {
-  it("routes replies through the replies direct exchange by userId", async ({
-    signal,
-  }) => {
+  it("routes replies through the replies direct exchange by userId", async () => {
     const amqpUrl = inject("amqpUrl");
     const connection = await amqp.connect(amqpUrl);
+    connection.on("error", () => {});
+
     const channel = await connection.createChannel();
+    channel.on("error", () => {});
+
+    const abortController = new AbortController();
     onTestFinished(async () => {
-      await channel.close();
-      await connection.close();
+      abortController.abort();
+      await connection.close().catch(() => {});
     });
 
     const userId = decodeURIComponent(new URL(amqpUrl).username || "guest");
     const otherUserId = `${userId}-other`;
-    const clientReplyQueue = `replies.${userId}`;
-    const otherReplyQueue = `replies.${otherUserId}`;
-
-    await channel.assertQueue("requests");
-    await channel.assertExchange("replies", "direct");
-    await channel.assertQueue(clientReplyQueue, { exclusive: true });
-    await channel.assertQueue(otherReplyQueue, { exclusive: true });
-    await channel.bindQueue(clientReplyQueue, "replies", userId);
-    await channel.bindQueue(otherReplyQueue, "replies", otherUserId);
+    const runId = globalThis.crypto.randomUUID();
+    const clientReplyQueue = `replies.${userId}.${runId}`;
+    const otherReplyQueue = `replies.${otherUserId}.${runId}`;
 
     const vibilia = vibiliaAdapter(
       new URL("http://localhost:8080"),
@@ -41,18 +38,33 @@ describe("full workflow", () => {
     await consumeMessages(
       vibilia,
       channel,
-      { requests: "requests", replies: "replies" },
-      signal,
+      {
+        requestsExchange: "requests",
+        requestsQueue: "requests",
+        repliesExchange: "replies",
+      },
+      abortController.signal,
     );
+
+    await channel.assertExchange("replies", "direct");
+    await channel.assertQueue(clientReplyQueue, { autoDelete: true });
+    await channel.assertQueue(otherReplyQueue, { autoDelete: true });
+    await channel.bindQueue(clientReplyQueue, "replies", userId);
+    await channel.bindQueue(otherReplyQueue, "replies", otherUserId);
 
     const correlationId = globalThis.crypto.randomUUID();
     const request: SendExampleEgvpMessage = { receiver: "receiver-safe-id" };
 
-    channel.sendToQueue("requests", Buffer.from(JSON.stringify(request)), {
-      type: "send-example-egvp-message",
-      userId,
-      correlationId,
-    });
+    channel.publish(
+      "requests",
+      "requests",
+      Buffer.from(JSON.stringify(request)),
+      {
+        type: "send-example-egvp-message",
+        userId,
+        correlationId,
+      },
+    );
 
     const reply = await vi.waitFor(async () => {
       const message = await channel.get(clientReplyQueue, { noAck: true });
@@ -65,6 +77,7 @@ describe("full workflow", () => {
     expect(reply.properties).toMatchObject({
       correlationId,
       type: "example-egvp-message-sent",
+      headers: { userId },
     });
     expect(JSON.parse(reply.content.toString())).toEqual({
       messageId: "test-message-id",
