@@ -16,10 +16,26 @@ async function main() {
     process.env["AMQP_URL"] ?? "amqp://localhost:5671",
   );
   const channel = await connection.createChannel();
+  const requestsExchangeName = "requests";
   const requestsQueueName = "requests";
-  const responsesQueueName = "responses";
-  channel.assertQueue(requestsQueueName);
-  channel.assertQueue(responsesQueueName);
+  const repliesExchangeName = "replies";
+  const repliesQueueName = "replies";
+
+  await channel.assertExchange(requestsExchangeName, "direct");
+  await channel.assertQueue(requestsQueueName);
+  await channel.bindQueue(
+    requestsQueueName,
+    requestsExchangeName,
+    requestsQueueName,
+  );
+
+  await channel.assertExchange(repliesExchangeName, "direct");
+  await channel.assertQueue(repliesQueueName);
+  await channel.bindQueue(
+    repliesQueueName,
+    repliesExchangeName,
+    repliesQueueName,
+  );
 
   const vibilia = vibiliaAdapter(
     new URL(process.env["VIBILIA_BASE_URL"]!),
@@ -27,13 +43,17 @@ async function main() {
     process.env["SENDER_MESSAGE_BOX_PASSWORD"]!,
   );
 
-  consumeMessages(vibilia, channel, {
-    requests: requestsQueueName,
-    responses: responsesQueueName,
+  await consumeMessages(vibilia, channel, {
+    requestsExchange: requestsExchangeName,
+    requestsQueue: requestsQueueName,
+    repliesExchange: repliesExchangeName,
+    repliesQueue: repliesQueueName,
   });
 }
 
-main();
+if (import.meta.main) {
+  main();
+}
 
 export async function loadMountedSecrets(secretsDir = "/etc/secrets") {
   for (const name of await readdir(secretsDir).catch(() => [])) {
@@ -47,18 +67,40 @@ export async function loadMountedSecrets(secretsDir = "/etc/secrets") {
 
 export async function consumeMessages(
   vibilia: VibiliaAdapter,
-  messageBroker: Channel,
-  queueNames: { requests: string; responses: string },
+  channel: Channel,
+  brokerTopology: {
+    requestsExchange: string;
+    requestsQueue: string;
+    repliesExchange: string;
+    repliesQueue: string;
+  },
   abortSignal?: AbortSignal,
 ) {
-  const context = {
+  await channel.assertExchange(brokerTopology.requestsExchange, "direct");
+  await channel.assertQueue(brokerTopology.requestsQueue);
+  await channel.bindQueue(
+    brokerTopology.requestsQueue,
+    brokerTopology.requestsExchange,
+    brokerTopology.requestsQueue,
+  );
+
+  await channel.assertExchange(brokerTopology.repliesExchange, "direct");
+  await channel.assertQueue(brokerTopology.repliesQueue);
+  await channel.bindQueue(
+    brokerTopology.repliesQueue,
+    brokerTopology.repliesExchange,
+    brokerTopology.repliesQueue,
+  );
+
+  const context: MessageHandlerContext = {
     vibilia,
-    messageBroker,
-    responseQueueName: queueNames.responses,
+    channel,
+    repliesExchange: brokerTopology.repliesExchange,
+    repliesRoutingKey: brokerTopology.repliesQueue,
   };
 
-  const consumer = await messageBroker.consume(
-    queueNames.requests,
+  const consumer = await channel.consume(
+    brokerTopology.requestsQueue,
     (message) => {
       switch (message?.properties.type) {
         case "send-example-egvp-message":
@@ -67,13 +109,20 @@ export async function consumeMessages(
         case "send-egvp-message":
           handleSendEgvpMessage(context, message);
           break;
+        default:
+          console.error("Unknown message type:", message?.properties.type);
+          break;
       }
     },
   );
 
   abortSignal?.addEventListener(
     "abort",
-    () => messageBroker.cancel(consumer.consumerTag),
+    () => {
+      channel.cancel(consumer.consumerTag).catch(() => {
+        console.error("Failed to cancel consumer during abort.");
+      });
+    },
     { once: true },
   );
 }
@@ -87,23 +136,27 @@ async function handleSendExampleEgvpMessage(
     return;
   }
 
+  const userId = requireReplyUserId(context.channel, message);
+  if (userId === undefined) {
+    return;
+  }
+
   try {
     const request = parseSendExampleEgvpMessage(message);
     const messageId = await sendMessage(
       request.receiver,
       context.vibilia,
-      
-        "https://drive.usercontent.google.com/download?id=1BI_iQp-AAVk7PECEGAFTC6FtUCGs01Vg&export=download&authuser=0&confirm=t&uuid=4cc50a53-3b74-4277-b487-5142d2ead333&at=AMrWOn0axqQarlzLUiJyHIxsfZ0m%3A1794230370010",
+      "https://drive.usercontent.google.com/download?id=1BI_iQp-AAVk7PECEGAFTC6FtUCGs01Vg&export=download&authuser=0&confirm=t&uuid=4cc50a53-3b74-4277-b487-5142d2ead333&at=AMrWOn0axqQarlzLUiJyHIxsfZ0m%3A1794230370010",
     );
 
-    const response: ExampleEgvpMessageSent = { messageId };
+    const reply: ExampleEgvpMessageSent = { messageId };
 
-    context.messageBroker.sendToQueue(
-      context.responseQueueName,
-      Buffer.from(JSON.stringify(response)),
-    );
+    publishReply(context, userId, reply, {
+      type: "example-egvp-message-sent",
+      correlationId: message.properties.correlationId,
+    });
 
-    context.messageBroker.ack(message);
+    context.channel.ack(message);
   } catch (error) {
     console.error("Failed to handle message:", error);
   }
@@ -118,6 +171,11 @@ async function handleSendEgvpMessage(
     return;
   }
 
+  const userId = requireReplyUserId(context.channel, message);
+  if (userId === undefined) {
+    return;
+  }
+
   try {
     const request = parseSendEgvpMessage(message);
     const messageId = await sendMessage(
@@ -127,17 +185,55 @@ async function handleSendEgvpMessage(
       request.attachments,
     );
 
-    const response: EgvpMessageSent = { messageId };
+    const reply: EgvpMessageSent = { messageId };
 
-    context.messageBroker.sendToQueue(
-      context.responseQueueName,
-      Buffer.from(JSON.stringify(response)),
-    );
+    publishReply(context, userId, reply, {
+      type: "egvp-message-sent",
+      correlationId: message.properties.correlationId,
+    });
 
-    context.messageBroker.ack(message);
+    context.channel.ack(message);
   } catch (error) {
     console.error("Failed to handle message:", error);
   }
+}
+
+function requireReplyUserId(
+  channel: Channel,
+  message: Message,
+): string | undefined {
+  const userId = message.properties.userId;
+  if (userId === undefined || userId.length === 0) {
+    console.error("Request message is missing the AMQP user-id property.");
+    channel.reject(message, false);
+    return undefined;
+  }
+
+  return userId;
+}
+
+function publishReply(
+  context: MessageHandlerContext,
+  userId: string,
+  reply: ExampleEgvpMessageSent | EgvpMessageSent,
+  options: {
+    type: string;
+    correlationId?: string;
+  },
+) {
+  context.channel.publish(
+    context.repliesExchange,
+    context.repliesRoutingKey,
+    Buffer.from(JSON.stringify(reply)),
+    {
+      contentType: "application/json",
+      type: options.type,
+      correlationId: options.correlationId,
+      headers: {
+        userId,
+      },
+    },
+  );
 }
 
 function parseSendExampleEgvpMessage(message: Message): SendExampleEgvpMessage {
@@ -214,6 +310,7 @@ export type EgvpMessageSent = {
 
 type MessageHandlerContext = {
   vibilia: VibiliaAdapter;
-  messageBroker: Channel;
-  responseQueueName: string;
+  channel: Channel;
+  repliesExchange: string;
+  repliesRoutingKey: string;
 };

@@ -1,5 +1,4 @@
 import { defineConfig } from "vitest/config";
-import package_ from "./package.json" with { type: "json" };
 
 // oxlint-disable-next-line no-default-export -- required by tsdown
 export default defineConfig({
@@ -13,8 +12,9 @@ export default defineConfig({
         },
         test: {
           name: "unit",
+          include: [],
           includeSource: ["src/**/*.ts"],
-          exclude: ["**/node_modules/**", "**/.git/**"],
+          exclude: ["**/node_modules/**", "**/.git/**", "test/integration/**"],
         },
       },
       {

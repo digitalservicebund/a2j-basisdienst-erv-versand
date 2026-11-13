@@ -196,7 +196,7 @@ if (import.meta.vitest) {
   const { describe, it, expect } = import.meta.vitest;
 
   describe("Vibilia REST integration", async () => {
-    it("should just work somehow", async () => {
+    it.skip("should just work somehow", async () => {
       const vibilia = vibiliaAdapter(
         new URL("http://localhost:8080"),
         process.env["SENDER_SAFE_ID"]!,

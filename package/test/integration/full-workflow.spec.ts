@@ -1,85 +1,74 @@
-import { describe, it, inject, expect } from "vitest";
+import { describe, it, inject, expect, vi, onTestFinished } from "vitest";
+import amqp from "amqplib";
 import { vibiliaAdapter } from "~/send-message";
-import amqp, { type Channel, type Message } from "amqplib";
-import {
-  consumeMessages,
-  type SendExampleEgvpMessage,
-  type ExampleEgvpMessageSent,
-} from "~/index";
+import { consumeMessages, type SendExampleEgvpMessage } from "~/index";
+
+vi.mock("~/send-message", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("~/send-message")>()),
+  sendMessage: vi.fn().mockResolvedValue("test-message-id"),
+}));
 
 describe("full workflow", () => {
-  it("should work please", async ({ signal }) => {
-    const connection = await amqp.connect(inject("amqpUrl"));
+  it("routes replies through the replies direct exchange by userId", async ({
+    signal,
+  }) => {
+    const amqpUrl = inject("amqpUrl");
+    const connection = await amqp.connect(amqpUrl);
     const channel = await connection.createChannel();
-    const requestsQueueName = "requests";
-    const responsesQueueName = "responses";
-    channel.assertQueue(requestsQueueName);
-    channel.assertQueue(responsesQueueName);
+    onTestFinished(async () => {
+      await channel.close();
+      await connection.close();
+    });
+
+    const userId = decodeURIComponent(new URL(amqpUrl).username || "guest");
+    const otherUserId = `${userId}-other`;
+    const clientReplyQueue = `replies.${userId}`;
+    const otherReplyQueue = `replies.${otherUserId}`;
+
+    await channel.assertQueue("requests");
+    await channel.assertExchange("replies", "direct");
+    await channel.assertQueue(clientReplyQueue, { exclusive: true });
+    await channel.assertQueue(otherReplyQueue, { exclusive: true });
+    await channel.bindQueue(clientReplyQueue, "replies", userId);
+    await channel.bindQueue(otherReplyQueue, "replies", otherUserId);
 
     const vibilia = vibiliaAdapter(
       new URL("http://localhost:8080"),
-      process.env["SENDER_SAFE_ID"]!,
-      process.env["SENDER_MESSAGE_BOX_PASSWORD"]!,
+      "sender-safe-id",
+      "password",
     );
 
-    consumeMessages(
+    await consumeMessages(
       vibilia,
       channel,
-      {
-        requests: requestsQueueName,
-        responses: responsesQueueName,
-      },
+      { requests: "requests", replies: "replies" },
       signal,
     );
 
-    const request: SendExampleEgvpMessage = {
-      receiver: process.env["RECEIVER_SAFE_ID"]!,
-    };
+    const correlationId = globalThis.crypto.randomUUID();
+    const request: SendExampleEgvpMessage = { receiver: "receiver-safe-id" };
 
-    channel.sendToQueue(
-      requestsQueueName,
-      Buffer.from(JSON.stringify(request)),
-    );
+    channel.sendToQueue("requests", Buffer.from(JSON.stringify(request)), {
+      type: "send-example-egvp-message",
+      userId,
+      correlationId,
+    });
 
-    const responseMessage = await waitForNextMessage(
-      channel,
-      responsesQueueName,
-    );
-    const response = parseMessage(responseMessage);
+    const reply = await vi.waitFor(async () => {
+      const message = await channel.get(clientReplyQueue, { noAck: true });
+      if (message === false) {
+        throw new Error("Reply message not yet available");
+      }
+      return message;
+    });
 
-    expect(response.messageId).toBeDefined();
+    expect(reply.properties).toMatchObject({
+      correlationId,
+      type: "example-egvp-message-sent",
+    });
+    expect(JSON.parse(reply.content.toString())).toEqual({
+      messageId: "test-message-id",
+    });
+    expect(await channel.get(otherReplyQueue, { noAck: true })).toBe(false);
   });
 });
-
-function parseMessage(message: Message | null): ExampleEgvpMessageSent {
-  const parsedContent = JSON.parse(message?.content.toString() ?? "");
-
-  if (
-    typeof parsedContent === "object" &&
-    "messageId" in parsedContent &&
-    typeof parsedContent.messageId === "string"
-  ) {
-    return { messageId: parsedContent.messageId };
-  } else {
-    console.error("broken message", message?.content.toString());
-    throw new Error("Failed to parse message from broker.");
-  }
-}
-
-function waitForNextMessage(
-  channel: Channel,
-  queueName: string,
-): Promise<Message | null> {
-  const consumerTag = "foo";
-
-  return new Promise((resolve) =>
-    channel.consume(
-      queueName,
-      (message) => {
-        channel.cancel(consumerTag);
-        resolve(message);
-      },
-      { consumerTag },
-    ),
-  );
-}
