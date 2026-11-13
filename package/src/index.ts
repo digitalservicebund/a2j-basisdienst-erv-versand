@@ -186,9 +186,12 @@ function requireReplyUserId(
   channel: Channel,
   message: Message,
 ): string | undefined {
-  const userId = message.properties.userId;
-  if (userId === undefined || userId.length === 0) {
-    console.error("Request message is missing the AMQP user-id property.");
+  const headerUserId = message.properties.headers?.["user_id"];
+  const userId =
+    typeof headerUserId === "string" ? headerUserId.trim() : undefined;
+
+  if (!userId) {
+    console.error("Request message is missing a valid 'user_id' header.");
     channel.reject(message, false);
     return undefined;
   }
@@ -214,7 +217,7 @@ function publishReply(
       type: options.type,
       correlationId: options.correlationId,
       headers: {
-        userId,
+        user_id: userId,
       },
     },
   );
