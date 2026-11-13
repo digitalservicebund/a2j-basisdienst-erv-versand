@@ -9,7 +9,7 @@ vi.mock("~/send-message", async (importOriginal) => ({
 }));
 
 describe("full workflow", () => {
-  it("routes replies through the replies direct exchange by userId", async () => {
+  it("routes replies through the replies direct exchange by user_id header", async () => {
     const amqpUrl = inject("amqpUrl");
     const connection = await amqp.connect(amqpUrl);
     connection.on("error", () => {});
@@ -23,8 +23,8 @@ describe("full workflow", () => {
       await connection.close().catch(() => {});
     });
 
-    const userId = decodeURIComponent(new URL(amqpUrl).username || "guest");
-    const otherUserId = `${userId}-other`;
+    const userId = "jts";
+    const otherUserId = "other-user";
     const runId = globalThis.crypto.randomUUID();
     const clientReplyQueue = `replies.${userId}.${runId}`;
     const otherReplyQueue = `replies.${otherUserId}.${runId}`;
@@ -61,8 +61,10 @@ describe("full workflow", () => {
       Buffer.from(JSON.stringify(request)),
       {
         type: "send-example-egvp-message",
-        userId,
         correlationId,
+        headers: {
+          user_id: userId,
+        },
       },
     );
 
@@ -77,7 +79,7 @@ describe("full workflow", () => {
     expect(reply.properties).toMatchObject({
       correlationId,
       type: "example-egvp-message-sent",
-      headers: { userId },
+      headers: { user_id: userId },
     });
     expect(JSON.parse(reply.content.toString())).toEqual({
       messageId: "test-message-id",
