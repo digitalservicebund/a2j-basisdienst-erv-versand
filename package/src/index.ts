@@ -19,7 +19,6 @@ async function main() {
   const requestsExchangeName = "requests";
   const requestsQueueName = "requests";
   const repliesExchangeName = "replies";
-  const repliesQueueName = "replies";
 
   await channel.assertExchange(requestsExchangeName, "direct");
   await channel.assertQueue(requestsQueueName);
@@ -30,12 +29,6 @@ async function main() {
   );
 
   await channel.assertExchange(repliesExchangeName, "direct");
-  await channel.assertQueue(repliesQueueName);
-  await channel.bindQueue(
-    repliesQueueName,
-    repliesExchangeName,
-    repliesQueueName,
-  );
 
   const vibilia = vibiliaAdapter(
     new URL(process.env["VIBILIA_BASE_URL"]!),
@@ -47,7 +40,6 @@ async function main() {
     requestsExchange: requestsExchangeName,
     requestsQueue: requestsQueueName,
     repliesExchange: repliesExchangeName,
-    repliesQueue: repliesQueueName,
   });
 }
 
@@ -72,7 +64,6 @@ export async function consumeMessages(
     requestsExchange: string;
     requestsQueue: string;
     repliesExchange: string;
-    repliesQueue: string;
   },
   abortSignal?: AbortSignal,
 ) {
@@ -85,18 +76,11 @@ export async function consumeMessages(
   );
 
   await channel.assertExchange(brokerTopology.repliesExchange, "direct");
-  await channel.assertQueue(brokerTopology.repliesQueue);
-  await channel.bindQueue(
-    brokerTopology.repliesQueue,
-    brokerTopology.repliesExchange,
-    brokerTopology.repliesQueue,
-  );
 
   const context: MessageHandlerContext = {
     vibilia,
     channel,
     repliesExchange: brokerTopology.repliesExchange,
-    repliesRoutingKey: brokerTopology.repliesQueue,
   };
 
   const consumer = await channel.consume(
@@ -223,7 +207,7 @@ function publishReply(
 ) {
   context.channel.publish(
     context.repliesExchange,
-    context.repliesRoutingKey,
+    userId,
     Buffer.from(JSON.stringify(reply)),
     {
       contentType: "application/json",
@@ -312,5 +296,4 @@ type MessageHandlerContext = {
   vibilia: VibiliaAdapter;
   channel: Channel;
   repliesExchange: string;
-  repliesRoutingKey: string;
 };
