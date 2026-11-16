@@ -207,7 +207,7 @@ function publishReply(
 ) {
   context.channel.publish(
     context.repliesExchange,
-    userId,
+    `replies.${userId}`,
     Buffer.from(JSON.stringify(reply)),
     {
       contentType: "application/json",

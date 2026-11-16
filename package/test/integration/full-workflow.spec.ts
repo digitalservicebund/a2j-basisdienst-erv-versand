@@ -49,8 +49,12 @@ describe("full workflow", () => {
     await channel.assertExchange("replies", "direct");
     await channel.assertQueue(clientReplyQueue, { autoDelete: true });
     await channel.assertQueue(otherReplyQueue, { autoDelete: true });
-    await channel.bindQueue(clientReplyQueue, "replies", userId);
-    await channel.bindQueue(otherReplyQueue, "replies", otherUserId);
+    await channel.bindQueue(clientReplyQueue, "replies", `replies.${userId}`);
+    await channel.bindQueue(
+      otherReplyQueue,
+      "replies",
+      `replies.${otherUserId}`,
+    );
 
     const correlationId = globalThis.crypto.randomUUID();
     const request: SendExampleEgvpMessage = { receiver: "receiver-safe-id" };
