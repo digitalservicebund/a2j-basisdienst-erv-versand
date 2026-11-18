@@ -1,56 +1,65 @@
+import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync, type PathOrFileDescriptor } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import ky, { type KyInstance } from "ky";
+import type {
+  Attachment,
+  DataArtifact,
+  EmbeddedData,
+  ReferencedData,
+  Sha256Digest,
+} from "./index.ts";
 
 export async function sendMessage(
   receiver: SafeID,
   vibilia: VibiliaAdapter,
-  xjustizNachricht: string,
+  xjustizMessage: DataArtifact,
   attachments?: Attachment[],
 ): Promise<MessageID> {
-  const messageWorkingDirectory = path.join(
+  const messageWorkingDirectoryPath = path.join(
     "/work",
     globalThis.crypto.randomUUID(),
   );
 
-  mkdirSync(messageWorkingDirectory, { recursive: true });
+  mkdirSync(messageWorkingDirectoryPath, { recursive: true });
 
-  const herkunftsnachweisXmlOutput = path.join(
-    messageWorkingDirectory,
+  const herkunftsnachweisXmlFilePath = path.join(
+    messageWorkingDirectoryPath,
     `vhn.xml`,
   );
-  const herkunftsnachweisXmlP7sOutput = path.join(
-    messageWorkingDirectory,
+  const herkunftsnachweisSignatureP7sFilePath = path.join(
+    messageWorkingDirectoryPath,
     `vhn.xml.p7s`,
   );
-  const xjustizNachrichtOutput = path.join(
-    messageWorkingDirectory,
+  const xjustizMessageXmlFilePath = path.join(
+    messageWorkingDirectoryPath,
     `xjustiz_nachricht.xml`,
   );
 
-  const xjustizNachrichtText = await ky.get(xjustizNachricht).text();
-  writeFileSync(xjustizNachrichtOutput, xjustizNachrichtText);
+  await writeDataArtifactToWorkingDirectoryFile(
+    xjustizMessage,
+    xjustizMessageXmlFilePath,
+  );
 
-  await downloadAttachments(attachments ?? [], messageWorkingDirectory);
-
-  const attachmentFilePaths =
-    attachments?.map(({ name }) => path.join(messageWorkingDirectory, name)) ??
-    [];
+  const attachmentFilePaths = await writeAttachmentsToWorkingDirectory(
+    attachments ?? [],
+    messageWorkingDirectoryPath,
+  );
 
   await createVertrauenswuerdigenHerkunftsnachweis(
-    xjustizNachrichtOutput,
+    xjustizMessageXmlFilePath,
     attachmentFilePaths,
     vibilia,
-    herkunftsnachweisXmlOutput,
-    herkunftsnachweisXmlP7sOutput,
+    herkunftsnachweisXmlFilePath,
+    herkunftsnachweisSignatureP7sFilePath,
   );
 
   const messageId = await initiateTransfer(
     receiver,
-    herkunftsnachweisXmlOutput,
-    herkunftsnachweisXmlP7sOutput,
-    xjustizNachrichtOutput,
+    herkunftsnachweisXmlFilePath,
+    herkunftsnachweisSignatureP7sFilePath,
+    xjustizMessageXmlFilePath,
     attachmentFilePaths,
     vibilia,
   );
@@ -61,29 +70,97 @@ export async function sendMessage(
   return messageId;
 }
 
-async function downloadAttachments(
-  attachments: Attachment[],
-  messageWorkingDirectory: string,
+export async function loadBytesFromDataArtifact(
+  dataArtifact: DataArtifact,
+  httpClient: DataArtifactHttpClient = ky,
+): Promise<Buffer> {
+  if (isEmbeddedData(dataArtifact)) {
+    return decodeEmbeddedBase64Data(dataArtifact);
+  }
+
+  return downloadAndVerifyReferencedData(dataArtifact, httpClient);
+}
+
+function isEmbeddedData(
+  dataArtifact: DataArtifact,
+): dataArtifact is EmbeddedData {
+  return "content" in dataArtifact;
+}
+
+function decodeEmbeddedBase64Data(embeddedData: EmbeddedData): Buffer {
+  return Buffer.from(embeddedData.content, "base64");
+}
+
+async function downloadAndVerifyReferencedData(
+  referencedData: ReferencedData,
+  httpClient: DataArtifactHttpClient,
+): Promise<Buffer> {
+  const parsedReferenceUri = new URL(referencedData.uri);
+  if (parsedReferenceUri.protocol !== "https:") {
+    throw new Error(`Unsupported URI protocol: ${parsedReferenceUri.protocol}`);
+  }
+
+  const downloadedBytes = Buffer.from(
+    await httpClient.get(referencedData.uri).arrayBuffer(),
+  );
+
+  if (downloadedBytes.byteLength !== referencedData.size) {
+    throw new Error(
+      `Referenced data size mismatch: expected ${referencedData.size} bytes, got ${downloadedBytes.byteLength} bytes.`,
+    );
+  }
+
+  const computedSha256Digest: Sha256Digest = `sha256:${createHash("sha256").update(downloadedBytes).digest("hex")}`;
+  if (computedSha256Digest !== referencedData.digest) {
+    throw new Error(
+      `Referenced data digest mismatch: expected ${referencedData.digest}, got ${computedSha256Digest}.`,
+    );
+  }
+
+  return downloadedBytes;
+}
+
+async function writeDataArtifactToWorkingDirectoryFile(
+  dataArtifact: DataArtifact,
+  targetFilePath: string,
 ): Promise<void> {
-  await Promise.all(
-    attachments.map(async (attachment): Promise<void> => {
-      const output = path.join(messageWorkingDirectory, attachment.name);
-      const content = Buffer.from(
-        await ky.get(attachment.source).arrayBuffer(),
+  const artifactBytes = await loadBytesFromDataArtifact(dataArtifact);
+  await writeFile(targetFilePath, artifactBytes);
+}
+
+async function writeAttachmentsToWorkingDirectory(
+  attachments: Attachment[],
+  messageWorkingDirectoryPath: string,
+): Promise<string[]> {
+  return Promise.all(
+    attachments.map(async (attachment): Promise<string> => {
+      const attachmentFilePath = path.resolve(
+        messageWorkingDirectoryPath,
+        attachment.name,
       );
-      await writeFile(output, content);
+      if (
+        path.dirname(attachmentFilePath) !==
+        path.resolve(messageWorkingDirectoryPath)
+      ) {
+        throw new Error(`Invalid attachment file name: ${attachment.name}`);
+      }
+      await writeDataArtifactToWorkingDirectoryFile(
+        attachment,
+        attachmentFilePath,
+      );
+      return attachmentFilePath;
     }),
   );
 }
 
 async function createVertrauenswuerdigenHerkunftsnachweis(
-  xjustizNachricht: XML,
+  xjustizMessageXmlFilePath: string,
   attachmentFilePaths: string[],
   vibilia: VibiliaAdapter,
   herkunftsnachweisXmlOutput: PathOrFileDescriptor,
   herkunftsnachweisXmlP7sOutput: PathOrFileDescriptor,
 ): Promise<void> {
-  const correlationID = globalThis.crypto.randomUUID();
+  const correlationId = globalThis.crypto.randomUUID();
 
   const response = await vibilia.api
     .post<CreateVhnApiResponse>(vibilia.createVhnPath, {
@@ -91,8 +168,8 @@ async function createVertrauenswuerdigenHerkunftsnachweis(
         vhnPassword: process.env["SENDER_VHN_PASSWORD"],
         messages: [
           {
-            vhn_id: correlationID,
-            xjustiz_xml_or_filepath: xjustizNachricht,
+            vhn_id: correlationId,
+            xjustiz_xml_or_filepath: xjustizMessageXmlFilePath,
             attachment_filepaths: attachmentFilePaths,
           },
         ],
@@ -102,31 +179,29 @@ async function createVertrauenswuerdigenHerkunftsnachweis(
 
   if ("error_message" in response) {
     throw new Error(response.error_message);
-  } else {
-    const rawHerkunftsnachweis = response.vhns.find(
-      ({ vhn_id }) => vhn_id === correlationID,
-    );
-    if (rawHerkunftsnachweis === undefined) {
-      throw new Error(
-        `Vibilia did not return a VHN for correlation ID ${correlationID}.`,
-      );
-    }
-
-    writeFileSync(herkunftsnachweisXmlOutput, rawHerkunftsnachweis.vhn_xml);
-    writeFileSync(
-      herkunftsnachweisXmlP7sOutput,
-      Buffer.from(rawHerkunftsnachweis.vhn_p7s, "base64"),
-    );
-
-    return undefined;
   }
+
+  const rawHerkunftsnachweis = response.vhns.find(
+    ({ vhn_id }) => vhn_id === correlationId,
+  );
+  if (rawHerkunftsnachweis === undefined) {
+    throw new Error(
+      `Vibilia did not return a VHN for correlation ID ${correlationId}.`,
+    );
+  }
+
+  writeFileSync(herkunftsnachweisXmlOutput, rawHerkunftsnachweis.vhn_xml);
+  writeFileSync(
+    herkunftsnachweisXmlP7sOutput,
+    Buffer.from(rawHerkunftsnachweis.vhn_p7s, "base64"),
+  );
 }
 
 async function initiateTransfer(
   receiver: SafeID,
   herkunftsnachweisXmlFilePath: string,
-  herkunftsnachweisP7sFilePath: string,
-  xjustizNachricht: string,
+  herkunftsnachweisSignatureP7sFilePath: string,
+  xjustizMessageXmlFilePath: string,
   attachmentFilePaths: string[],
   vibilia: VibiliaAdapter,
 ): Promise<string> {
@@ -134,8 +209,8 @@ async function initiateTransfer(
     .post<SendMessageApiResponse>(vibilia.sendMessagePath(receiver), {
       json: {
         vhn_xml_filepath: herkunftsnachweisXmlFilePath,
-        vhn_p7s_filepath: herkunftsnachweisP7sFilePath,
-        xjustiz_xml_filepath: xjustizNachricht,
+        vhn_p7s_filepath: herkunftsnachweisSignatureP7sFilePath,
+        xjustiz_xml_filepath: xjustizMessageXmlFilePath,
         attachment_filepaths: attachmentFilePaths,
       },
     })
@@ -143,9 +218,9 @@ async function initiateTransfer(
 
   if ("error_message" in response) {
     throw new Error(response.error_message);
-  } else {
-    return response.message_id;
   }
+
+  return response.message_id;
 }
 
 export function vibiliaAdapter(
@@ -175,8 +250,6 @@ export type VibiliaAdapter = {
 export type SafeID = string;
 export type MessageID = string;
 
-type XML = string;
-
 type CreateVhnApiResponse =
   | {
       vhns: { vhn_id: string; vhn_xml: string; vhn_p7s: string }[];
@@ -187,33 +260,118 @@ type SendMessageApiResponse =
   | { message_id: MessageID }
   | { error_message: string };
 
-type Attachment = {
-  name: string;
-  source: string;
+type DataArtifactHttpClient = {
+  get(uri: string): {
+    arrayBuffer(): Promise<ArrayBuffer>;
+  };
 };
 
 if (import.meta.vitest) {
-  const { describe, it, expect } = import.meta.vitest;
+  const { describe, it, expect, vi } = import.meta.vitest;
+
+  function embeddedDataFromBytes(bytes: Buffer): EmbeddedData {
+    return { content: bytes.toString("base64") };
+  }
+
+  describe("Data Artifact loading", () => {
+    it("decodes EmbeddedData from Base64 content", async () => {
+      const rawXmlBytes = Buffer.from("<xjustiz>embedded</xjustiz>", "utf-8");
+      const loadedBytes = await loadBytesFromDataArtifact(
+        embeddedDataFromBytes(rawXmlBytes),
+      );
+
+      expect(loadedBytes).toEqual(rawXmlBytes);
+    });
+
+    it("downloads ReferencedData over HTTPS and verifies byte size and SHA-256 digest", async () => {
+      const rawAttachmentBytes = Buffer.from(
+        "referenced-attachment-bytes",
+        "utf-8",
+      );
+      const expectedDigest: Sha256Digest = `sha256:${createHash("sha256").update(rawAttachmentBytes).digest("hex")}`;
+      const get = vi.fn().mockReturnValue({
+        arrayBuffer: async () =>
+          rawAttachmentBytes.buffer.slice(
+            rawAttachmentBytes.byteOffset,
+            rawAttachmentBytes.byteOffset + rawAttachmentBytes.byteLength,
+          ),
+      });
+
+      const loadedBytes = await loadBytesFromDataArtifact(
+        {
+          uri: "https://some.upstream.context/some/resource",
+          size: rawAttachmentBytes.byteLength,
+          digest: expectedDigest,
+        },
+        { get },
+      );
+
+      expect(get).toHaveBeenCalledWith(
+        "https://some.upstream.context/some/resource",
+      );
+      expect(loadedBytes).toEqual(rawAttachmentBytes);
+    });
+
+    it("rejects ReferencedData when byte size or SHA-256 digest does not match", async () => {
+      const actualBytes = Buffer.from("actual-bytes", "utf-8");
+      const validDigest: Sha256Digest = `sha256:${createHash("sha256").update(actualBytes).digest("hex")}`;
+      const httpClient = {
+        get: () => ({
+          arrayBuffer: async () =>
+            actualBytes.buffer.slice(
+              actualBytes.byteOffset,
+              actualBytes.byteOffset + actualBytes.byteLength,
+            ),
+        }),
+      };
+
+      await expect(
+        loadBytesFromDataArtifact(
+          {
+            uri: "https://some.upstream.context/some/resource",
+            size: actualBytes.byteLength + 1,
+            digest: validDigest,
+          },
+          httpClient,
+        ),
+      ).rejects.toThrow("Referenced data size mismatch");
+
+      await expect(
+        loadBytesFromDataArtifact(
+          {
+            uri: "https://some.upstream.context/some/resource",
+            size: actualBytes.byteLength,
+            digest: `sha256:${"0".repeat(64)}`,
+          },
+          httpClient,
+        ),
+      ).rejects.toThrow("Referenced data digest mismatch");
+    });
+  });
 
   describe("Vibilia REST integration", async () => {
     it.skip("should just work somehow", async () => {
+      const { readFileSync } = await import("node:fs");
       const vibilia = vibiliaAdapter(
         new URL("http://localhost:8080"),
         process.env["SENDER_SAFE_ID"]!,
         process.env["SENDER_MESSAGE_BOX_PASSWORD"]!,
       );
+      const xjustizMessage = readFileSync(
+        new URL("./xjustiz_nachricht.xml", import.meta.url),
+      );
 
       await sendMessage(
         process.env["RECEIVER_SAFE_ID"]!,
         vibilia,
-        "https://drive.usercontent.google.com/download?id=1BI_iQp-AAVk7PECEGAFTC6FtUCGs01Vg&export=download&authuser=0&confirm=t&uuid=4cc50a53-3b74-4277-b487-5142d2ead333&at=AMrWOn0axqQarlzLUiJyHIxsfZ0m%3A1794230370010",
+        embeddedDataFromBytes(xjustizMessage),
       );
     });
 
     it("creates a VertrauenswuerdigenHerkunftsnachweis through Vibilia", async () => {
       const { readFileSync } = await import("node:fs");
 
-      const xjustizNachricht = readFileSync(
+      const xjustizMessage = readFileSync(
         new URL("./xjustiz_nachricht.xml", import.meta.url),
         "utf-8",
       );
@@ -235,7 +393,7 @@ if (import.meta.vitest) {
       );
 
       await createVertrauenswuerdigenHerkunftsnachweis(
-        xjustizNachricht,
+        xjustizMessage,
         [],
         vibilia,
         herkunftsnachweisXmlOutput,
