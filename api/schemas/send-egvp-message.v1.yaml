@@ -4,7 +4,7 @@ title: Send EGVP Message
 type: object
 required:
   - receiver
-  - xjustizNachricht
+  - xjustizMessage
 properties:
   receiver:
     description: target identity where to send the message to
