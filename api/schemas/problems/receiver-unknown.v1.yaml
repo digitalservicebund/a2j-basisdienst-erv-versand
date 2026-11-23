@@ -5,8 +5,6 @@ description: >
   The target receiver referenced in the request does not exist.
   Not retryable: Change receiver.
 allOf: [{ $ref: problem-details.v1.yaml }]
-required:
-  - pointer
 properties:
   type:
     const: https://schemas.service.justiz.de/basisdienst/erv/problems/receiver-unknown

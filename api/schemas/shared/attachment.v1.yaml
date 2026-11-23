@@ -16,5 +16,8 @@ properties:
       The UUID is optional, but recommended per default. The total length MUST
       not be longer than 90 characters. The display name and other metadata can
       be provided in the XJustiz message.
+
+      There are some known deviations of this ERV specification, which is why
+      the pattern is not fully enforced.
     type: string
     maxLength: 90

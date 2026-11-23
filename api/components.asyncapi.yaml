@@ -30,7 +30,7 @@ components:
       summary: Request message to initiate the transfer of an EGVP message to a direct receiver
       bindings:
         amqp:
-          messageType: de.justiz.service.basisdienst.erv.send-egvp-message.v1
+          messageType: de.justiz.basisdienst.erv.send-egvp-message.v1
       payload:
         $ref: "./schemas/send-egvp-message.v1.yaml"
       traits:

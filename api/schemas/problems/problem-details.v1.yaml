@@ -25,14 +25,14 @@ properties:
       Absolute URI identifying the problem type. It is a stable identifier and
       consumers can branch on this value.
     examples:
-      - https://schemas.service.justiz.de/basisdienst/erv/problems/incorrect-message-payload
+     - type: https://schemas.service.justiz.de/basisdienst/erv/problems/receiver-unknown
   title:
     type: string
     description: >-
       Short, human-readable summary of the problem. It is fixed per problem type
       and does not change between occurrences.
     examples:
-      - Incorrect Message Payload
+      - Receiver Unknown
   detail:
     type: string
     description: >
@@ -40,8 +40,8 @@ properties:
       for logs and debugging. Do **NOT** include sensitive data. Consumer must
       not attempt to parse the details.
     examples:
-      - Missing "name" for item of "attachments[1]".
+      - The receiver referenced in the request does not exist.
 examples:
-  - type: https://schemas.service.justiz.de/basisdienst/erv/problems/recipient-unknown
-    title: Incorrect Message Payload
-    detail: Missing "name" for item of "attachments[1]".
+  - type: https://schemas.service.justiz.de/basisdienst/erv/problems/receiver-unknown
+    title: Receiver Unknown
+    detail: The receiver referenced in the request does not exist.
