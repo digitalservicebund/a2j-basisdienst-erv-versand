@@ -88,7 +88,18 @@ export async function consumeMessages(
     (message) => {
       switch (message?.properties.type) {
         case "send-example-egvp-message":
-          handleSendExampleEgvpMessage(context, message);
+          handleSendExampleEgvpMessage(
+            context,
+            message,
+            "example-egvp-message-sent",
+          );
+          break;
+        case "de.justiz.basisdienst.erv.send-egvp-example-message.v1":
+          handleSendExampleEgvpMessage(
+            context,
+            message,
+            "de.justiz.basisdienst.erv.egvp-message-sent.v1",
+          );
           break;
         case "send-egvp-message":
           handleSendEgvpMessage(context, message, "egvp-message-sent");
@@ -121,6 +132,9 @@ export async function consumeMessages(
 async function handleSendExampleEgvpMessage(
   context: MessageHandlerContext,
   message: Message | null,
+  replyType:
+    | "example-egvp-message-sent"
+    | "de.justiz.basisdienst.erv.egvp-message-sent.v1",
 ): Promise<void> {
   if (message === null) {
     console.error("Why was there a 'null' message?");
@@ -143,7 +157,7 @@ async function handleSendExampleEgvpMessage(
     const reply: ExampleEgvpMessageSent = { messageId };
 
     publishReply(context, userId, reply, {
-      type: "example-egvp-message-sent",
+      type: replyType,
       correlationId: message.properties.correlationId,
     });
 
@@ -172,12 +186,31 @@ async function handleSendEgvpMessage(
 
   try {
     const request = parseSendEgvpMessage(message);
-    const messageId = await sendMessage(
-      request.receiver,
-      context.vibilia,
-      request.xjustizMessage,
-      request.attachments,
-    );
+    let messageId: MessageID;
+    try {
+      messageId = await sendMessage(
+        request.receiver,
+        context.vibilia,
+        request.xjustizMessage,
+        request.attachments,
+      );
+    } catch (error) {
+      console.error("Failed to handle message:", error);
+      const reply: UnknownProblem = {
+        type: "https://schemas.service.justiz.de/basisdienst/erv/problems/unknown-problem",
+        title: "Unknown Problem",
+        detail: "The message could not be sent due to an unexpected error.",
+      };
+
+      publishReply(context, userId, reply, {
+        type: "de.justiz.basisdienst.erv.send-egvp-message-failed.v1",
+        contentType: "application/problem+json",
+        correlationId: message.properties.correlationId,
+      });
+
+      context.channel.ack(message);
+      return;
+    }
 
     const reply: EgvpMessageSent = { messageId };
 
@@ -209,9 +242,10 @@ function requireReplyUserId(
 function publishReply(
   context: MessageHandlerContext,
   userId: string,
-  reply: ExampleEgvpMessageSent | EgvpMessageSent,
+  reply: ExampleEgvpMessageSent | EgvpMessageSent | UnknownProblem,
   options: {
     type: string;
+    contentType?: "application/json" | "application/problem+json";
     correlationId?: string;
   },
 ) {
@@ -220,7 +254,7 @@ function publishReply(
     `replies.${userId}`,
     Buffer.from(JSON.stringify(reply)),
     {
-      contentType: "application/json",
+      contentType: options.contentType ?? "application/json",
       type: options.type,
       correlationId: options.correlationId,
       headers: {
@@ -394,6 +428,12 @@ export type Attachment = DataArtifact & {
 
 export type EgvpMessageSent = {
   messageId: MessageID;
+};
+
+type UnknownProblem = {
+  type: "https://schemas.service.justiz.de/basisdienst/erv/problems/unknown-problem";
+  title: "Unknown Problem";
+  detail: string;
 };
 
 type MessageHandlerContext = {
