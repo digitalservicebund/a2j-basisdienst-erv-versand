@@ -91,8 +91,14 @@ export async function consumeMessages(
           handleSendExampleEgvpMessage(context, message);
           break;
         case "send-egvp-message":
+          handleSendEgvpMessage(context, message, "egvp-message-sent");
+          break;
         case "de.justiz.basisdienst.erv.send-egvp-message.v1":
-          handleSendEgvpMessage(context, message);
+          handleSendEgvpMessage(
+            context,
+            message,
+            "de.justiz.basisdienst.erv.egvp-message-sent.v1",
+          );
           break;
         default:
           console.error("Unknown message type:", message?.properties.type);
@@ -150,6 +156,9 @@ async function handleSendExampleEgvpMessage(
 async function handleSendEgvpMessage(
   context: MessageHandlerContext,
   message: Message | null,
+  replyType:
+    | "egvp-message-sent"
+    | "de.justiz.basisdienst.erv.egvp-message-sent.v1",
 ): Promise<void> {
   if (message === null) {
     console.error("Why was there a 'null' message?");
@@ -173,7 +182,7 @@ async function handleSendEgvpMessage(
     const reply: EgvpMessageSent = { messageId };
 
     publishReply(context, userId, reply, {
-      type: "egvp-message-sent",
+      type: replyType,
       correlationId: message.properties.correlationId,
     });
 

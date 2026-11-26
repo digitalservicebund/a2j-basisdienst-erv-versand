@@ -116,12 +116,49 @@ describe("full workflow", () => {
 
     expect(versionedReply.properties).toMatchObject({
       correlationId: versionedCorrelationId,
-      type: "egvp-message-sent",
+      type: "de.justiz.basisdienst.erv.egvp-message-sent.v1",
       headers: { userId },
     });
     expect(JSON.parse(versionedReply.content.toString())).toEqual({
       messageId: "test-message-id",
     });
+
+    const legacyCorrelationId = globalThis.crypto.randomUUID();
+    channel.publish(
+      "requests",
+      "requests",
+      Buffer.from(
+        JSON.stringify({
+          receiver: "receiver-safe-id",
+          xjustizMessage: {
+            content: Buffer.from("<xjustiz/>").toString("base64"),
+          },
+        }),
+      ),
+      {
+        type: "send-egvp-message",
+        userId,
+        correlationId: legacyCorrelationId,
+      },
+    );
+
+    const legacyReply = await vi.waitFor(async () => {
+      const message = await channel.get(clientReplyQueue, { noAck: true });
+      if (message === false) {
+        throw new Error("Legacy reply message not yet available");
+      }
+      return message;
+    });
+
+    expect(legacyReply.properties).toMatchObject({
+      correlationId: legacyCorrelationId,
+      type: "egvp-message-sent",
+      headers: { userId },
+    });
+    expect(JSON.parse(legacyReply.content.toString())).toEqual({
+      messageId: "test-message-id",
+    });
+
     expect(await channel.get(otherReplyQueue, { noAck: true })).toBe(false);
   });
 });
