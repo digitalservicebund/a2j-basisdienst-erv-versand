@@ -86,6 +86,42 @@ describe("full workflow", () => {
     expect(JSON.parse(reply.content.toString())).toEqual({
       messageId: "test-message-id",
     });
+
+    const versionedCorrelationId = globalThis.crypto.randomUUID();
+    channel.publish(
+      "requests",
+      "requests",
+      Buffer.from(
+        JSON.stringify({
+          receiver: "receiver-safe-id",
+          xjustizMessage: {
+            content: Buffer.from("<xjustiz/>").toString("base64"),
+          },
+        }),
+      ),
+      {
+        type: "de.justiz.basisdienst.erv.send-egvp-message.v1",
+        userId,
+        correlationId: versionedCorrelationId,
+      },
+    );
+
+    const versionedReply = await vi.waitFor(async () => {
+      const message = await channel.get(clientReplyQueue, { noAck: true });
+      if (message === false) {
+        throw new Error("Versioned reply message not yet available");
+      }
+      return message;
+    });
+
+    expect(versionedReply.properties).toMatchObject({
+      correlationId: versionedCorrelationId,
+      type: "egvp-message-sent",
+      headers: { userId },
+    });
+    expect(JSON.parse(versionedReply.content.toString())).toEqual({
+      messageId: "test-message-id",
+    });
     expect(await channel.get(otherReplyQueue, { noAck: true })).toBe(false);
   });
 });

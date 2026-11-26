@@ -91,6 +91,7 @@ export async function consumeMessages(
           handleSendExampleEgvpMessage(context, message);
           break;
         case "send-egvp-message":
+        case "de.justiz.basisdienst.erv.send-egvp-message.v1":
           handleSendEgvpMessage(context, message);
           break;
         default:
